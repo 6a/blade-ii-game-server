@@ -49,7 +49,8 @@ func (queue *Queue) Start() {
 				log.Println("Size of Queue: ", len(queue.clients))
 				break
 			case message := <-queue.broadcast:
-				log.Println("Sending message to all clients in Pool")
+				log.Println("Sending message to all clients in Pool:")
+				log.Println(message)
 				for _, client := range queue.clients {
 					client.SendMessage(message)
 				}
