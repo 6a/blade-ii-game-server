@@ -1,9 +1,7 @@
 package net
 
 import (
-	"fmt"
 	"log"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -11,17 +9,10 @@ import (
 // Client is a container for a websocket connection and its associate player data
 type Client struct {
 	connection *Connection
+	ID         uint64
 	UID        string
 	MMR        int
-}
-
-func (client *Client) readMessage() (WSMessageType, []byte, error) {
-	mt, payload, err := client.connection.WS.ReadMessage()
-	return WSMessageType(mt), payload, err
-}
-
-func (client *Client) writeMessage(messageType WSMessageType, message []byte) error {
-	return client.connection.WS.WriteMessage(int(messageType), message)
+	queue      *Queue
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
@@ -32,64 +23,52 @@ func (client *Client) StartEventLoop() {
 
 func (client *Client) pollReceive() {
 	for {
-		mt, message, err := client.readMessage()
+		err := client.connection.ReadMessage()
 		if err != nil {
 			log.Println("read error: ", err)
+			client.queue.Remove(client)
+			client.connection.Close()
 		}
-		client.connection.AddToInQueue(MakeRawMessage(mt, message, err))
 	}
 }
 
 func (client *Client) pollSend() {
 	for {
-		for len(client.connection.Out) > 0 {
-			rawMessage := client.connection.PopOutQueue()
+		message := client.connection.GetNextSendMessage()
 
-			err := client.writeMessage(rawMessage.Type, rawMessage.Payload)
-			if err != nil {
-				log.Println("write error: ", err)
-			}
-
-			log.Println(fmt.Sprintf("Client [%v] sent message:\n%s", client.UID, rawMessage))
+		err := client.connection.WriteMessage(message)
+		if err != nil {
+			log.Println("write error: ", err)
 		}
 	}
 }
 
 // Tick reads any incoming messages and passes outgoing messages to the queue
 func (client *Client) Tick() {
-	for len(client.connection.In) > 0 {
-		rawMessage := client.connection.PopInQueue()
-		log.Println(fmt.Sprintf("Client [%v] received message:\n%s", client.UID, rawMessage))
+	// Process receive queue
+	for len(client.connection.ReceiveQueue) > 0 {
+		rawMessage := client.connection.GetNextReceiveMessage()
 
-		client.connection.AddToOutQueue(rawMessage)
+		// For now we just relay all incoming messages
+		client.connection.SendMessage(NewMessage(rawMessage.Type, WSCInfo, string(rawMessage.Payload)))
 	}
+
+	// Update values
+}
+
+// SendMessage sends a message to the client
+func (client *Client) SendMessage(message Message) {
+	client.connection.SendMessage(message)
 }
 
 // NewClient creates a new Client
-func NewClient(wsconn *websocket.Conn, uid string, mmr int) Client {
-
-	connection := Connection{
-		WS:     wsconn,
-		Joined: time.Now(),
-	}
+func NewClient(wsconn *websocket.Conn, uid string, mmr int, queue *Queue) Client {
+	connection := NewConnection(wsconn)
 
 	return Client{
 		connection: &connection,
 		UID:        uid,
 		MMR:        mmr,
-	}
-}
-
-// ClientPair is a light wrapper for a pair of client connections
-type ClientPair struct {
-	C1 *Client
-	C2 *Client
-}
-
-// NewPair creates a new ClientPair
-func NewPair(c1 *Client, c2 *Client) ClientPair {
-	return ClientPair{
-		C1: c1,
-		C2: c2,
+		queue:      queue,
 	}
 }

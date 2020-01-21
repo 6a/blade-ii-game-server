@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/6a/blade-ii-game-server/internal/net"
 	"github.com/6a/blade-ii-game-server/internal/routes"
 )
 
@@ -13,12 +14,19 @@ const (
 	keyPath  = "crypto/server.key"
 )
 
-var addr = flag.String("wsaddress", "127.0.0.1:8080", "http service address")
+var addr = flag.String("address", "127.0.0.1:8080", "Service Address")
 
 func main() {
 	flag.Parse()
 	log.SetFlags(0)
 
-	http.HandleFunc("/queue", routes.Queue)
+	// Matchmaking queue
+	matchMakingQueue := net.NewMatchMaking()
+	go matchMakingQueue.Start()
+	routes.SetupMatchMaking(&matchMakingQueue)
+
+	// Games
+
+	// Serve
 	log.Fatal(http.ListenAndServeTLS(*addr, certPath, keyPath, nil))
 }

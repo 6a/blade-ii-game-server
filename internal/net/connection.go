@@ -6,33 +6,69 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// MessageBufferSize is the size of each clients message buffer (both directions)
+const MessageBufferSize = 32
+
 // Connection is a wrapper for a websocket connection
 type Connection struct {
-	WS      *websocket.Conn
-	Joined  time.Time
-	Latency uint16
-	In      []RawMessage
-	Out     []RawMessage
+	WS           *websocket.Conn
+	Joined       time.Time
+	Latency      uint16
+	ReceiveQueue chan RawMessage
+	Out          chan Message
 }
 
-func (c *Connection) AddToInQueue(msg RawMessage) {
-	c.In = append(c.In, msg)
+func (connection *Connection) init() {
+	connection.ReceiveQueue = make(chan RawMessage, MessageBufferSize)
+	connection.Out = make(chan Message, MessageBufferSize)
 }
 
-func (c *Connection) AddToOutQueue(msg RawMessage) {
-	c.Out = append(c.Out, msg)
+// ReadMessage synchronously retreives messages from the websocket
+func (connection *Connection) ReadMessage() error {
+	mt, payload, err := connection.WS.ReadMessage()
+	rawMessage := NewRawMessage(WSMessageType(mt), payload)
+
+	if err != nil {
+		return err
+	}
+
+	connection.ReceiveQueue <- rawMessage
+
+	return nil
 }
 
-func (c *Connection) PopInQueue() RawMessage {
-	rawMessage := c.In[0]
-	c.In = c.In[1:]
-
-	return rawMessage
+// WriteMessage synchronously sends messages down websocket
+func (connection *Connection) WriteMessage(message Message) error {
+	return connection.WS.WriteMessage(int(message.Type), message.GetPayloadBytes())
 }
 
-func (c *Connection) PopOutQueue() RawMessage {
-	rawMessage := c.Out[0]
-	c.Out = c.Out[1:]
+// SendMessage sends a messages (in reality it adds it to a queue and it is sent shortly after)
+func (connection *Connection) SendMessage(message Message) {
+	connection.Out <- message
+}
 
-	return rawMessage
+// GetNextReceiveMessage gets the next message from the client from the inbound message queue
+func (connection *Connection) GetNextReceiveMessage() RawMessage {
+	return <-connection.ReceiveQueue
+}
+
+// GetNextSendMessage gets the next message from the outbound message queue
+func (connection *Connection) GetNextSendMessage() Message {
+	return <-connection.Out
+}
+
+// Close closes the connection
+func (connection *Connection) Close() error {
+	return connection.WS.Close()
+}
+
+// NewConnection creates a new connection
+func NewConnection(wsconn *websocket.Conn) Connection {
+	connection := Connection{
+		WS:     wsconn,
+		Joined: time.Now(),
+	}
+
+	connection.init()
+	return connection
 }

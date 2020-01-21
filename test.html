@@ -17,20 +17,26 @@
                 if (ws) {
                     return false
                 }
-                
-                ws = new WebSocket("wss://127.0.0.1:8080/queue")
+
+                ws = new WebSocket("wss://127.0.0.1:8080/matchmaking")
 
                 ws.onopen = function (evt) {
-                    print("OPEN")
+                    print("OPEN - SENDING AUTH")
+
+                    let payload = {
+                        code: 200,
+                        message: "19028dhqso101231:OASIFJOF112901dfIOPAJSFas",
+                    }
+                    ws.send(JSON.stringify(payload))
                 }
 
                 ws.onclose = function (evt) {
-                    print("CLOSE")
+                    print(`CLOSE: ${evt.code} | ${evt.data}`)
                     ws = null
                 }
-                
+
                 ws.onmessage = function (evt) {
-                    print("RESPONSE: " + evt.data)
+                    print("RECEIVED: " + evt.data)
                 }
 
                 ws.onerror = function (evt) {
@@ -55,6 +61,12 @@
             }
         })
     </script>
+    <style>
+        body {
+            color: rgb(226, 226, 226);
+            background-color: black;
+        }
+    </style>
 </head>
 
 <body>
