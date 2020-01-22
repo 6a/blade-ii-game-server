@@ -28,6 +28,7 @@ func (client *Client) pollReceive() {
 			log.Println("read error: ", err)
 			client.queue.Remove(client)
 			client.connection.Close()
+			break
 		}
 	}
 }
