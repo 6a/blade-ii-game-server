@@ -22,7 +22,6 @@ func main() {
 
 	// Matchmaking queue
 	matchMakingQueue := net.NewMatchMaking()
-	go matchMakingQueue.Start()
 	routes.SetupMatchMaking(&matchMakingQueue)
 
 	// Games
