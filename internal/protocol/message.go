@@ -1,21 +1,29 @@
-package connection
+package protocol
 
 import "encoding/json"
 
 // Message is a wrapper for an outgoing websocket message and its message type
 type Message struct {
-	Type    WSMessageType
+	Type    Type
 	Payload Payload
 }
 
 // NewMessage creates a new message
-func NewMessage(wstype WSMessageType, instructionCode WSCode, payload string) Message {
+func NewMessage(wstype Type, instructionCode B2Code, payload string) Message {
 	return Message{
 		Type: wstype,
 		Payload: Payload{
 			Code:    instructionCode,
 			Message: payload,
 		},
+	}
+}
+
+// NewMessageFromPayload creates a new message from a payload object
+func NewMessageFromPayload(wstype Type, payload Payload) Message {
+	return Message{
+		Type:    wstype,
+		Payload: payload,
 	}
 }
 

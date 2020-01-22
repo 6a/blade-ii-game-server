@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/6a/blade-ii-game-server/internal/connection"
+	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
 
 // BufferSize is the size of each message queue's buffer
@@ -20,7 +20,7 @@ type Queue struct {
 	clients    map[uint64]*Client
 	register   chan *Client
 	unregister chan uint64
-	broadcast  chan connection.Message
+	broadcast  chan protocol.Message
 	commands   chan Command
 }
 
@@ -30,7 +30,7 @@ func (queue *Queue) Start() {
 	queue.clients = make(map[uint64]*Client)
 	queue.register = make(chan *Client, BufferSize)
 	queue.unregister = make(chan uint64, BufferSize)
-	queue.broadcast = make(chan connection.Message, BufferSize)
+	queue.broadcast = make(chan protocol.Message, BufferSize)
 	queue.commands = make(chan Command, BufferSize)
 
 	for {
@@ -46,7 +46,7 @@ func (queue *Queue) Start() {
 				queue.index = append(queue.index, queue.nextIndex)
 				queue.nextIndex++
 				log.Printf("Client [%s] joined the matchmaking queue. Total clients: %v", client.UID, len(queue.clients))
-				client.SendMessage(connection.NewMessage(connection.WSMTText, connection.WSCAuthSuccess, "Added to matchmaking queue"))
+				client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthSuccess, "Added to matchmaking queue"))
 				break
 			case clientid := <-queue.unregister:
 				toRemove = append(toRemove, clientid)
@@ -117,7 +117,7 @@ func (queue *Queue) Remove(client *Client) {
 }
 
 // Broadcast sends a message to all connected clients
-func (queue *Queue) Broadcast(message connection.Message) {
+func (queue *Queue) Broadcast(message protocol.Message) {
 	queue.broadcast <- message
 }
 

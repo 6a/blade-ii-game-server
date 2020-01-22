@@ -1,13 +1,13 @@
-package connection
+package protocol
 
-// WSCode is a typedef for non-system websocket messages
-type WSCode uint16
+// B2Code is a typedef for non-system websocket messages
+type B2Code uint16
 
 // Offsets for various types of message
 const (
-	connectionOffset  = 100
-	authOffset        = 200
-	matchMakingOffset = 300
+	connectionOffset  B2Code = 100
+	authOffset               = 200
+	matchMakingOffset        = 300
 )
 
 // WSCInfo is a generic all-purpose code. Try to avoid using this unless the message can be safely ignored

@@ -3,6 +3,8 @@ package connection
 import (
 	"time"
 
+	"github.com/6a/blade-ii-game-server/internal/protocol"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -14,46 +16,47 @@ type Connection struct {
 	WS           *websocket.Conn
 	Joined       time.Time
 	Latency      uint16
-	ReceiveQueue chan RawMessage
-	Out          chan Message
+	ReceiveQueue chan protocol.Message
+	Out          chan protocol.Message
 }
 
 func (connection *Connection) init() {
-	connection.ReceiveQueue = make(chan RawMessage, MessageBufferSize)
-	connection.Out = make(chan Message, MessageBufferSize)
+	connection.ReceiveQueue = make(chan protocol.Message, MessageBufferSize)
+	connection.Out = make(chan protocol.Message, MessageBufferSize)
 }
 
 // ReadMessage synchronously retreives messages from the websocket
 func (connection *Connection) ReadMessage() error {
 	mt, payload, err := connection.WS.ReadMessage()
-	rawMessage := NewRawMessage(WSMessageType(mt), payload)
-
 	if err != nil {
 		return err
 	}
 
-	connection.ReceiveQueue <- rawMessage
+	messagePayload := protocol.NewPayloadFromBytes(payload)
+	packagedMessage := protocol.NewMessageFromPayload(protocol.Type(mt), messagePayload)
+
+	connection.ReceiveQueue <- packagedMessage
 
 	return nil
 }
 
 // WriteMessage synchronously sends messages down websocket
-func (connection *Connection) WriteMessage(message Message) error {
+func (connection *Connection) WriteMessage(message protocol.Message) error {
 	return connection.WS.WriteMessage(int(message.Type), message.GetPayloadBytes())
 }
 
 // SendMessage sends a messages (in reality it adds it to a queue and it is sent shortly after)
-func (connection *Connection) SendMessage(message Message) {
+func (connection *Connection) SendMessage(message protocol.Message) {
 	connection.Out <- message
 }
 
 // GetNextReceiveMessage gets the next message from the client from the inbound message queue
-func (connection *Connection) GetNextReceiveMessage() RawMessage {
+func (connection *Connection) GetNextReceiveMessage() protocol.Message {
 	return <-connection.ReceiveQueue
 }
 
 // GetNextSendMessage gets the next message from the outbound message queue
-func (connection *Connection) GetNextSendMessage() Message {
+func (connection *Connection) GetNextSendMessage() protocol.Message {
 	return <-connection.Out
 }
 

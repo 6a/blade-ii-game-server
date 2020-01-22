@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/6a/blade-ii-game-server/internal/connection"
+	"github.com/6a/blade-ii-game-server/internal/protocol"
 	"github.com/gorilla/websocket"
 )
 
@@ -49,17 +50,17 @@ func (client *Client) pollSend() {
 func (client *Client) Tick() {
 	// Process receive queue
 	for len(client.connection.ReceiveQueue) > 0 {
-		rawMessage := client.connection.GetNextReceiveMessage()
+		message := client.connection.GetNextReceiveMessage()
 
 		// For now we just relay all incoming messages
-		client.connection.SendMessage(connection.NewMessage(rawMessage.Type, connection.WSCInfo, string(rawMessage.Payload)))
+		client.connection.SendMessage(message)
 	}
 
 	// Update values
 }
 
 // SendMessage sends a message to the client
-func (client *Client) SendMessage(message connection.Message) {
+func (client *Client) SendMessage(message protocol.Message) {
 	client.connection.SendMessage(message)
 }
 
