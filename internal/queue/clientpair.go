@@ -1,4 +1,4 @@
-package net
+package queue
 
 // ClientPair is a light wrapper for a pair of client connections
 type ClientPair struct {

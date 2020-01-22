@@ -1,4 +1,4 @@
-package net
+package connection
 
 // WSCode is a typedef for non-system websocket messages
 type WSCode uint16

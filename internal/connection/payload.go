@@ -1,4 +1,4 @@
-package net
+package connection
 
 // Payload is a wrapper for the payload of a websocket message
 type Payload struct {

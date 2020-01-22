@@ -1,14 +1,15 @@
-package net
+package queue
 
 import (
 	"log"
 
+	"github.com/6a/blade-ii-game-server/internal/connection"
 	"github.com/gorilla/websocket"
 )
 
 // Client is a container for a websocket connection and its associate player data
 type Client struct {
-	connection *Connection
+	connection *connection.Connection
 	ID         uint64
 	UID        string
 	MMR        int
@@ -51,20 +52,20 @@ func (client *Client) Tick() {
 		rawMessage := client.connection.GetNextReceiveMessage()
 
 		// For now we just relay all incoming messages
-		client.connection.SendMessage(NewMessage(rawMessage.Type, WSCInfo, string(rawMessage.Payload)))
+		client.connection.SendMessage(connection.NewMessage(rawMessage.Type, connection.WSCInfo, string(rawMessage.Payload)))
 	}
 
 	// Update values
 }
 
 // SendMessage sends a message to the client
-func (client *Client) SendMessage(message Message) {
+func (client *Client) SendMessage(message connection.Message) {
 	client.connection.SendMessage(message)
 }
 
 // NewClient creates a new Client
 func NewClient(wsconn *websocket.Conn, uid string, mmr int, queue *Queue) Client {
-	connection := NewConnection(wsconn)
+	connection := connection.NewConnection(wsconn)
 
 	return Client{
 		connection: &connection,

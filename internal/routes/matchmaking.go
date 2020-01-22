@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/6a/blade-ii-game-server/internal/gatekeeper"
-	"github.com/6a/blade-ii-game-server/internal/net"
+	"github.com/6a/blade-ii-game-server/internal/matchmaking"
 	"github.com/gorilla/websocket"
 )
 
@@ -13,7 +13,7 @@ var upgrader = websocket.Upgrader{
 }
 
 // SetupMatchMaking sets up the matchmaking queue endpoint
-func SetupMatchMaking(mm *net.MatchMaking) {
+func SetupMatchMaking(mm *matchmaking.MatchMaking) {
 	http.HandleFunc("/matchmaking", func(w http.ResponseWriter, r *http.Request) {
 		wsconn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {

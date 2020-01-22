@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/6a/blade-ii-game-server/internal/net"
+	"github.com/6a/blade-ii-game-server/internal/matchmaking"
 	"github.com/6a/blade-ii-game-server/internal/routes"
 )
 
@@ -21,7 +21,8 @@ func main() {
 	log.SetFlags(0)
 
 	// Matchmaking queue
-	matchMakingQueue := net.NewMatchMaking()
+	matchMakingQueue := matchmaking.NewMatchMaking()
+	matchMakingQueue.Init()
 	routes.SetupMatchMaking(&matchMakingQueue)
 
 	// Games
