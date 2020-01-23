@@ -11,7 +11,14 @@ import (
 // BufferSize is the size of each message queue's buffer
 const BufferSize = 32
 
+// readyCheckTime is how long to wait when a ready check is sent
+const readyCheckTime = time.Second * 15
+
+// How frequently to update the matchmaking queue (minimum wait between iterations)
 var pollTime = 500 * time.Millisecond
+
+// How frequently to update the match found goroutine (minimum wait between iterations)
+var pollTimeMatchFound = 500 * time.Millisecond
 
 // Queue is a wrapper for the matchmaking queue
 type Queue struct {
@@ -94,8 +101,12 @@ func (queue *Queue) Start() {
 			client.Tick()
 		}
 
-		// Perform matchmaking
-		// matchedClients := queue.MatchMake()
+		// Perform matchmaking - these pairs will be dealt with in the other goroutine loop
+		matchedClients := queue.matchMake()
+		for _, clientPair := range matchedClients {
+			clientPair.SendMatchStartMessage()
+			go queue.pollReadyCheck(clientPair)
+		}
 
 		// Wait til next iteration if the time taken is less than the designated poll time
 		elapsed := time.Now().Sub(start)
@@ -121,14 +132,64 @@ func (queue *Queue) Broadcast(message protocol.Message) {
 	queue.broadcast <- message
 }
 
-// MatchMake matches people in the queue based on various factors, such as mmr, latency, and waiting time
-func (queue *Queue) MatchMake() (pairs []ClientPair) {
+func (queue *Queue) pollReadyCheck(clientPair ClientPair) {
+	for {
+		start := time.Now()
+
+		if clientPair.C1.Ready && clientPair.C2.Ready {
+			client1ReadyValid := clientPair.C1.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
+			client2ReadyValid := clientPair.C2.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
+			if client1ReadyValid && client2ReadyValid {
+				// Set up match and get ID
+
+				// Send confirmation to clients
+
+				// Remove from queue
+			} else {
+				// Determine if any of the clients were ready in time
+
+				// Put the ready ones back in the queue and toggle is reading checking back to false
+
+				// Remove the bad ones
+
+				break
+			}
+		} else if time.Now().Sub(clientPair.ReadyStart) > readyCheckTime {
+			// Determine if any of the clients were ready in time
+
+			// Put the ready ones back in the queue
+
+			// Remove the bad ones
+
+			break
+		}
+
+		// Wait til next iteration if the time taken is less than the designated poll time
+		elapsed := time.Now().Sub(start)
+		remainingPollTime := pollTimeMatchFound - elapsed
+		if remainingPollTime > 0 {
+			time.Sleep(remainingPollTime)
+		}
+	}
+}
+
+func (queue *Queue) matchMake() (pairs []ClientPair) {
 	// Matchmaking algo goes here. For now just return all the pairs we can put into pairs of two
 
 	pairs = make([]ClientPair, 0)
 
-	for len(queue.clients) > 1 {
-		pairs = append(pairs[:2])
+	currentPair := ClientPair{}
+	for _, index := range queue.index {
+		client := queue.clients[index]
+		if !client.IsReadyChecking {
+			if currentPair.C1 == nil {
+				currentPair.C1 = client
+			} else {
+				currentPair.C2 = client
+				pairs = append(pairs, currentPair)
+				currentPair = ClientPair{}
+			}
+		}
 	}
 
 	return pairs

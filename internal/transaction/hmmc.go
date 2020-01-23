@@ -1,4 +1,4 @@
-package gatekeeper
+package transaction
 
 import (
 	"errors"
@@ -13,16 +13,16 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const timeout = time.Second * 5
+const mmConnectTimeout = time.Second * 5
 const authDelimiter = ":"
 
-// Handle waits for the new connection to send an auth protocol.
+// HandleMMConnection waits for the new connection to send an auth protocol.
 // Once received, it checks if the auth is valid, then retrieves the mmr of the
 // specified account.
 //
 // If it does not receive an auth message within the timeout period, it drops the
 // connection
-func Handle(wsconn *websocket.Conn, mm *matchmaking.MatchMaking) {
+func HandleMMConnection(wsconn *websocket.Conn, mm *matchmaking.MatchMaking) {
 	readyChannel := make(chan protocol.Message, 1)
 	go func() {
 		mt, payload, err := wsconn.ReadMessage()
@@ -39,41 +39,41 @@ func Handle(wsconn *websocket.Conn, mm *matchmaking.MatchMaking) {
 
 	select {
 	case res := <-readyChannel:
-		uid, b2code, err := checkAuth(res.Payload)
+		id, pid, b2code, err := checkAuth(res.Payload)
 		if err != nil {
 			connection.CloseConnection(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
 			return
 		}
 
-		mmr, err := database.GetMMR(uid)
+		mmr, err := database.GetMMR(id)
 		if err != nil {
 			connection.CloseConnection(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
 			return
 		}
 
-		mm.AddClient(wsconn, uid, mmr)
-	case <-time.After(timeout):
+		mm.AddClient(wsconn, pid, mmr)
+	case <-time.After(mmConnectTimeout):
 		connection.CloseConnection(wsconn, protocol.NewMessage(protocol.WSCAuthNotReceived, protocol.WSCUnknownError, "Auth message not received"))
 		return
 	}
 }
 
-func checkAuth(payload protocol.Payload) (uid string, wscode protocol.B2Code, err error) {
+func checkAuth(payload protocol.Payload) (id uint64, pid string, wscode protocol.B2Code, err error) {
 	if payload.Code != protocol.WSCAuthRequest {
-		return "", protocol.WSCAuthExpected, errors.New("Auth expected but received something else")
+		return id, pid, protocol.WSCAuthExpected, errors.New("Auth expected but received something else")
 	}
 
 	auth := strings.Split(payload.Message, authDelimiter)
 	if len(auth) != 2 {
-		return "", protocol.WSCAuthBadFormat, errors.New("Auth bad format")
+		return id, pid, protocol.WSCAuthBadFormat, errors.New("Auth bad format")
 	}
 
-	uid, key := auth[0], auth[1]
-	err = database.ValidateAuth(uid, key)
+	pid, key := auth[0], auth[1]
+	id, err = database.ValidateAuth(pid, key)
 	if err != nil {
 		// TODO filter by result (banned etc)
-		return "", protocol.WSCAuthBadCredentials, errors.New("Credentials no invalid")
+		return id, pid, protocol.WSCAuthBadCredentials, err
 	}
 
-	return uid, 0, nil
+	return id, pid, 0, nil
 }

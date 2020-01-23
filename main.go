@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/matchmaking"
 	"github.com/6a/blade-ii-game-server/internal/routes"
 )
@@ -19,6 +20,9 @@ var addr = flag.String("address", "127.0.0.1:8080", "Service Address")
 func main() {
 	flag.Parse()
 	log.SetFlags(0)
+
+	// Init database connection
+	database.Init()
 
 	// Matchmaking queue
 	matchMakingQueue := matchmaking.NewMatchMaking()

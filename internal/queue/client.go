@@ -2,6 +2,7 @@ package queue
 
 import (
 	"log"
+	"time"
 
 	"github.com/6a/blade-ii-game-server/internal/connection"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
@@ -10,11 +11,14 @@ import (
 
 // Client is a container for a websocket connection and its associate player data
 type Client struct {
-	connection *connection.Connection
-	ID         uint64
-	UID        string
-	MMR        int
-	queue      *Queue
+	ID              uint64
+	UID             string
+	MMR             int
+	Ready           bool
+	ReadyTime       time.Time
+	IsReadyChecking bool
+	connection      *connection.Connection
+	queue           *Queue
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
@@ -51,6 +55,11 @@ func (client *Client) Tick() {
 	// Process receive queue
 	for len(client.connection.ReceiveQueue) > 0 {
 		message := client.connection.GetNextReceiveMessage()
+
+		if message.Payload.Code == protocol.WSCMatchMakingReady {
+			client.Ready = true
+			client.ReadyTime = time.Now()
+		}
 
 		// For now we just relay all incoming messages
 		client.connection.SendMessage(message)

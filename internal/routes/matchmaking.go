@@ -3,7 +3,9 @@ package routes
 import (
 	"net/http"
 
-	"github.com/6a/blade-ii-game-server/internal/gatekeeper"
+	"github.com/6a/blade-ii-game-server/internal/connection"
+	"github.com/6a/blade-ii-game-server/internal/protocol"
+
 	"github.com/6a/blade-ii-game-server/internal/matchmaking"
 	"github.com/gorilla/websocket"
 )
@@ -17,9 +19,9 @@ func SetupMatchMaking(mm *matchmaking.MatchMaking) {
 	http.HandleFunc("/matchmaking", func(w http.ResponseWriter, r *http.Request) {
 		wsconn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			// Close conn
+			connection.CloseConnection(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthBadCredentials, err.Error()))
 		}
 
-		go gatekeeper.Handle(wsconn, mm)
+		go transactions.HandleMMConnection(wsconn, mm)
 	})
 }

@@ -15,13 +15,13 @@ const WSCInfo = 0
 
 // Connection
 const (
-	WSCConnectionTimeOut = iota + connectionOffset
+	WSCConnectionTimeOut B2Code = iota + connectionOffset
 	WSCUnknownError
 )
 
 // Auth
 const (
-	WSCAuthRequest = iota + authOffset
+	WSCAuthRequest B2Code = iota + authOffset
 	WSCAuthBadFormat
 	WSCAuthBadCredentials
 	WSCAuthExpired
@@ -33,5 +33,7 @@ const (
 
 // MatchMaking
 const (
-	WSCMatchMakingGameFound = iota + matchMakingOffset
+	WSCMatchMakingGameFound B2Code = iota + matchMakingOffset
+	WSCMatchMakingReady
+	WSCMatchConfirmed
 )
