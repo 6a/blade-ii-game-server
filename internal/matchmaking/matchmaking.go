@@ -11,10 +11,9 @@ type MatchMaking struct {
 }
 
 // AddClient takes a new client and their various data, wraps them up and adds them to the matchmaking queue
-func (mm *MatchMaking) AddClient(wsconn *websocket.Conn, uid string, mmr int) {
-	client := queue.NewClient(wsconn, uid, mmr, &mm.queue)
+func (mm *MatchMaking) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int) {
+	client := queue.NewClient(wsconn, dbid, pid, mmr, &mm.queue)
 	client.StartEventLoop()
-
 	mm.queue.Add(&client)
 }
 

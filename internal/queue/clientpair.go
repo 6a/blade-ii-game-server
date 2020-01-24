@@ -33,7 +33,7 @@ func (pair *ClientPair) SendMatchStartMessage() {
 }
 
 // SendMatchConfirmedMessage sends a match confirmation message with match ID to both clients
-func (pair *ClientPair) SendMatchConfirmedMessage(matchID string) {
-	pair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, matchID))
-	pair.C2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, matchID))
+func (pair *ClientPair) SendMatchConfirmedMessage(matchID int64) {
+	pair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, string(matchID)))
+	pair.C2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, string(matchID)))
 }

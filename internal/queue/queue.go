@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
 
@@ -49,10 +50,10 @@ func (queue *Queue) Start() {
 			select {
 			case client := <-queue.register:
 				queue.clients[queue.nextIndex] = client
-				client.ID = queue.nextIndex
+				client.QueueID = queue.nextIndex
 				queue.index = append(queue.index, queue.nextIndex)
 				queue.nextIndex++
-				log.Printf("Client [%s] joined the matchmaking queue. Total clients: %v", client.UID, len(queue.clients))
+				log.Printf("Client [%s] joined the matchmaking queue. Total clients: %v", client.PublicID, len(queue.clients))
 				client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthSuccess, "Added to matchmaking queue"))
 				break
 			case clientid := <-queue.unregister:
@@ -80,7 +81,7 @@ func (queue *Queue) Start() {
 		for index := len(toRemove) - 1; index >= 0; index-- {
 			// Remove from the queue (map)
 			removalIndex := toRemove[index]
-			deletedClientUID := queue.clients[removalIndex].UID
+			deletedClientUID := queue.clients[removalIndex].PublicID
 			delete(queue.clients, removalIndex)
 
 			// Remove from the queue index (slice)
@@ -124,7 +125,7 @@ func (queue *Queue) Add(client *Client) {
 
 // Remove adds a client to the unregister queue, to be removed next cycle
 func (queue *Queue) Remove(client *Client) {
-	queue.unregister <- client.ID
+	queue.unregister <- client.QueueID
 }
 
 // Broadcast sends a message to all connected clients
@@ -133,35 +134,42 @@ func (queue *Queue) Broadcast(message protocol.Message) {
 }
 
 func (queue *Queue) pollReadyCheck(clientPair ClientPair) {
-	for {
-		start := time.Now()
+	start := time.Now()
 
-		if clientPair.C1.Ready && clientPair.C2.Ready {
+	for {
+		timedOut := time.Now().Sub(clientPair.ReadyStart) > readyCheckTime
+
+		if (clientPair.C1.Ready && clientPair.C2.Ready) || timedOut {
 			client1ReadyValid := clientPair.C1.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
 			client2ReadyValid := clientPair.C2.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
+
+			clientPair.C1.IsReadyChecking = false
+			clientPair.C1.Ready = false
+			clientPair.C2.IsReadyChecking = false
+			clientPair.C2.Ready = false
+
 			if client1ReadyValid && client2ReadyValid {
-				// Set up match and get ID
+				matchid, err := database.CreateMatch(clientPair.C1.DBID, clientPair.C2.DBID)
+				if err != nil {
+					log.Printf("Failed to create a match: %s", err.Error())
+				}
 
-				// Send confirmation to clients
+				clientPair.SendMatchConfirmedMessage(matchid)
 
-				// Remove from queue
-			} else {
-				// Determine if any of the clients were ready in time
-
-				// Put the ready ones back in the queue and toggle is reading checking back to false
-
-				// Remove the bad ones
-
-				break
+				queue.Remove(clientPair.C1)
+				queue.Remove(clientPair.C2)
+				return
 			}
-		} else if time.Now().Sub(clientPair.ReadyStart) > readyCheckTime {
-			// Determine if any of the clients were ready in time
 
-			// Put the ready ones back in the queue
+			if !client1ReadyValid {
+				queue.Remove(clientPair.C1)
+			}
 
-			// Remove the bad ones
+			if !client2ReadyValid {
+				queue.Remove(clientPair.C2)
+			}
 
-			break
+			return
 		}
 
 		// Wait til next iteration if the time taken is less than the designated poll time

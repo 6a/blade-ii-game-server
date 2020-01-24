@@ -28,8 +28,8 @@ var dbtableTokens = os.Getenv("db_table_tokens")
 var psGetUser = fmt.Sprintf("SELECT `id`, `banned` FROM `%v`.`%v` WHERE `public_id` = ?;", dbname, dbtableUsers)
 var psGetAuthExpiry = fmt.Sprintf("SELECT `auth_expiry` FROM `%v`.`%v` WHERE `id` = ? AND `auth` = ?;", dbname, dbtableTokens)
 var psGetMMR = fmt.Sprintf("SELECT `mmr` FROM `%v`.`%v` WHERE `id` = ?;", dbname, dbtableProfiles)
+var psCreateMatch = fmt.Sprintf("INSERT INTO `%v`.`%v` (`player1`, `player2`) VALUES (?, ?);", dbname, dbtableMatches)
 
-// var psCreateAccount = fmt.Sprintf("INSERT INTO `%v`.`%v` (`public_id`, `handle`, `email`, `salted_hash`) VALUES (?, ?, ?, ?);", dbname, dbtableUsers)
 // var psCreateTokenRowWithEmailToken = fmt.Sprintf("INSERT INTO `%v`.`%v` (`id`, `email_confirmation`, `email_confirmation_expiry`) VALUES (LAST_INSERT_ID(), ?, DATE_ADD(NOW(), INTERVAL ? HOUR));", dbname, dbtableTokens)
 // var psAddTokenWithReplacers = fmt.Sprintf("UPDATE `%v`.`%v` SET `repl_1` = ?, `repl_2` = DATE_ADD(NOW(), INTERVAL ? HOUR) WHERE `id` = ?;", dbname, dbtableTokens)
 
@@ -93,6 +93,27 @@ func GetMMR(id uint64) (mmr int, err error) {
 	}
 
 	return mmr, nil
+}
+
+// CreateMatch creates a match with the two clients specified, and returns the match id
+func CreateMatch(client1ID uint64, client2ID uint64) (id int64, err error) {
+	statement, err := db.Prepare(psCreateMatch)
+	defer statement.Close()
+	if err != nil {
+		return id, errors.New("Internal server error: Failed to prepare statement")
+	}
+
+	res, err := statement.Exec(client1ID, client2ID)
+	if err != nil {
+		return id, err
+	}
+
+	id, err = res.LastInsertId()
+	if err != nil {
+		return id, err
+	}
+
+	return id, err
 }
 
 func getUser(pid string) (id uint64, banned bool, err error) {

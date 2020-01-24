@@ -1,4 +1,4 @@
-package transaction
+package transactions
 
 import (
 	"errors"
@@ -51,9 +51,9 @@ func HandleMMConnection(wsconn *websocket.Conn, mm *matchmaking.MatchMaking) {
 			return
 		}
 
-		mm.AddClient(wsconn, pid, mmr)
+		mm.AddClient(wsconn, id, pid, mmr)
 	case <-time.After(mmConnectTimeout):
-		connection.CloseConnection(wsconn, protocol.NewMessage(protocol.WSCAuthNotReceived, protocol.WSCUnknownError, "Auth message not received"))
+		connection.CloseConnection(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, "Auth message not received"))
 		return
 	}
 }

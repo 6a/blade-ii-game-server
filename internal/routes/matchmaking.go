@@ -5,6 +5,7 @@ import (
 
 	"github.com/6a/blade-ii-game-server/internal/connection"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
+	"github.com/6a/blade-ii-game-server/internal/transactions"
 
 	"github.com/6a/blade-ii-game-server/internal/matchmaking"
 	"github.com/gorilla/websocket"

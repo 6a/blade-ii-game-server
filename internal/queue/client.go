@@ -11,8 +11,9 @@ import (
 
 // Client is a container for a websocket connection and its associate player data
 type Client struct {
-	ID              uint64
-	UID             string
+	DBID            uint64
+	PublicID        string
+	QueueID         uint64
 	MMR             int
 	Ready           bool
 	ReadyTime       time.Time
@@ -74,12 +75,13 @@ func (client *Client) SendMessage(message protocol.Message) {
 }
 
 // NewClient creates a new Client
-func NewClient(wsconn *websocket.Conn, uid string, mmr int, queue *Queue) Client {
+func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int, queue *Queue) Client {
 	connection := connection.NewConnection(wsconn)
 
 	return Client{
 		connection: &connection,
-		UID:        uid,
+		DBID:       dbid,
+		PublicID:   pid,
 		MMR:        mmr,
 		queue:      queue,
 	}
