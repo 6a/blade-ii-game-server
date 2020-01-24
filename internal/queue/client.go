@@ -20,6 +20,7 @@ type Client struct {
 	IsReadyChecking bool
 	connection      *connection.Connection
 	queue           *Queue
+	PendingKill     bool
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
@@ -32,9 +33,12 @@ func (client *Client) pollReceive() {
 	for {
 		err := client.connection.ReadMessage()
 		if err != nil {
+			if client.PendingKill {
+				break
+			}
+
 			log.Println("read error: ", err)
 			client.queue.Remove(client)
-			client.connection.Close()
 			break
 		}
 	}

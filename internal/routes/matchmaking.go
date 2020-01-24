@@ -20,7 +20,7 @@ func SetupMatchMaking(mm *matchmaking.MatchMaking) {
 	http.HandleFunc("/matchmaking", func(w http.ResponseWriter, r *http.Request) {
 		wsconn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			connection.CloseConnection(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthBadCredentials, err.Error()))
+			connection.Close(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthBadCredentials, err.Error()))
 		}
 
 		go transactions.HandleMMConnection(wsconn, mm)

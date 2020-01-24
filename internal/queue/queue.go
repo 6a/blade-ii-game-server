@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/6a/blade-ii-game-server/internal/connection"
 	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
@@ -13,7 +14,7 @@ import (
 const BufferSize = 32
 
 // readyCheckTime is how long to wait when a ready check is sent
-const readyCheckTime = time.Second * 15
+const readyCheckTime = time.Second * 5
 
 // How frequently to update the matchmaking queue (minimum wait between iterations)
 var pollTime = 500 * time.Millisecond
@@ -81,20 +82,27 @@ func (queue *Queue) Start() {
 		for index := len(toRemove) - 1; index >= 0; index-- {
 			// Remove from the queue (map)
 			removalIndex := toRemove[index]
-			deletedClientUID := queue.clients[removalIndex].PublicID
+			deletedClientPID := queue.clients[removalIndex].PublicID
+			queue.clients[removalIndex].PendingKill = true
+
+			go connection.Close(queue.clients[removalIndex].connection.WS, protocol.NewMessage(protocol.WSMTText, protocol.WSCInfo, ""))
 			delete(queue.clients, removalIndex)
 
 			// Remove from the queue index (slice)
 			for indexIterator >= 0 {
 				if queue.index[index] == removalIndex {
-					queue.index = append(queue.index[:indexIterator], queue.index[indexIterator+1:]...)
+					if len(queue.index) == 1 {
+						queue.index = make([]uint64, 0)
+					} else {
+						queue.index = append(queue.index[:indexIterator], queue.index[indexIterator+1:]...)
+					}
 					break
 				}
 
 				indexIterator--
 			}
 
-			log.Printf("Client [%s] left the matchmaking queue. Total clients: %v", deletedClientUID, len(queue.clients))
+			log.Printf("Client [%s] left the matchmaking queue. Total clients: %v", deletedClientPID, len(queue.clients))
 		}
 
 		// Tick all clients
@@ -138,37 +146,37 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) {
 
 	for {
 		timedOut := time.Now().Sub(clientPair.ReadyStart) > readyCheckTime
+		client1ReadyValid := clientPair.C1.Ready && clientPair.C1.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
+		client2ReadyValid := clientPair.C2.Ready && clientPair.C2.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
 
-		if (clientPair.C1.Ready && clientPair.C2.Ready) || timedOut {
-			client1ReadyValid := clientPair.C1.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
-			client2ReadyValid := clientPair.C2.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
-
-			clientPair.C1.IsReadyChecking = false
-			clientPair.C1.Ready = false
-			clientPair.C2.IsReadyChecking = false
-			clientPair.C2.Ready = false
-
-			if client1ReadyValid && client2ReadyValid {
-				matchid, err := database.CreateMatch(clientPair.C1.DBID, clientPair.C2.DBID)
-				if err != nil {
-					log.Printf("Failed to create a match: %s", err.Error())
+		if (client1ReadyValid && client2ReadyValid) || timedOut {
+			if timedOut || !client1ReadyValid || !client2ReadyValid {
+				if !client1ReadyValid {
+					queue.Remove(clientPair.C1)
+				} else {
+					clientPair.C1.IsReadyChecking = false
+					clientPair.C1.Ready = false
 				}
 
-				clientPair.SendMatchConfirmedMessage(matchid)
+				if !client2ReadyValid {
+					queue.Remove(clientPair.C2)
+				} else {
+					clientPair.C2.IsReadyChecking = false
+					clientPair.C2.Ready = false
+				}
 
-				queue.Remove(clientPair.C1)
-				queue.Remove(clientPair.C2)
 				return
 			}
 
-			if !client1ReadyValid {
-				queue.Remove(clientPair.C1)
+			matchid, err := database.CreateMatch(clientPair.C1.DBID, clientPair.C2.DBID)
+			if err != nil {
+				log.Printf("Failed to create a match: %s", err.Error())
 			}
 
-			if !client2ReadyValid {
-				queue.Remove(clientPair.C2)
-			}
+			clientPair.SendMatchConfirmedMessage(matchid)
 
+			queue.Remove(clientPair.C1)
+			queue.Remove(clientPair.C2)
 			return
 		}
 
@@ -183,7 +191,6 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) {
 
 func (queue *Queue) matchMake() (pairs []ClientPair) {
 	// Matchmaking algo goes here. For now just return all the pairs we can put into pairs of two
-
 	pairs = make([]ClientPair, 0)
 
 	currentPair := ClientPair{}

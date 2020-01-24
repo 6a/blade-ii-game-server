@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/6a/blade-ii-game-server/internal/protocol"
@@ -34,6 +35,7 @@ func (pair *ClientPair) SendMatchStartMessage() {
 
 // SendMatchConfirmedMessage sends a match confirmation message with match ID to both clients
 func (pair *ClientPair) SendMatchConfirmedMessage(matchID int64) {
-	pair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, string(matchID)))
-	pair.C2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, string(matchID)))
+	stringID := fmt.Sprintf("%v", matchID)
+	pair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, stringID))
+	pair.C2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, stringID))
 }

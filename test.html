@@ -37,6 +37,11 @@
 
                 ws.onmessage = function (evt) {
                     print("RECEIVED: " + evt.data)
+                    let payload = JSON.parse(evt.data)
+
+                    if (payload.code === 300) {
+                        ws.send(JSON.stringify({ code: 301, message: ""}))
+                    }
                 }
 
                 ws.onerror = function (evt) {

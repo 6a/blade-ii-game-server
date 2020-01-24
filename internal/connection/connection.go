@@ -34,7 +34,6 @@ func (connection *Connection) ReadMessage() error {
 
 	messagePayload := protocol.NewPayloadFromBytes(payload)
 	packagedMessage := protocol.NewMessageFromPayload(protocol.Type(mt), messagePayload)
-
 	connection.ReceiveQueue <- packagedMessage
 
 	return nil
