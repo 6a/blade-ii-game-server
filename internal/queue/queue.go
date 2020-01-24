@@ -28,7 +28,7 @@ type Queue struct {
 	nextIndex  uint64
 	clients    map[uint64]*Client
 	register   chan *Client
-	unregister chan uint64
+	unregister chan UnregisterRequest
 	broadcast  chan protocol.Message
 	commands   chan Command
 }
@@ -38,7 +38,7 @@ func (queue *Queue) Start() {
 	queue.index = make([]uint64, 0)
 	queue.clients = make(map[uint64]*Client)
 	queue.register = make(chan *Client, BufferSize)
-	queue.unregister = make(chan uint64, BufferSize)
+	queue.unregister = make(chan UnregisterRequest, BufferSize)
 	queue.broadcast = make(chan protocol.Message, BufferSize)
 	queue.commands = make(chan Command, BufferSize)
 
@@ -46,7 +46,7 @@ func (queue *Queue) Start() {
 		start := time.Now()
 
 		// Perform all pending tasks
-		toRemove := make([]uint64, 0)
+		toRemove := make([]UnregisterRequest, 0)
 		for len(queue.register)+len(queue.unregister)+len(queue.broadcast) > 0 {
 			select {
 			case client := <-queue.register:
@@ -73,7 +73,7 @@ func (queue *Queue) Start() {
 		}
 
 		// Sort the pending removal slice in ascending order so that we can iterate over the queue index once
-		sort.Slice(toRemove, func(i, j int) bool { return toRemove[i] < toRemove[j] })
+		sort.Slice(toRemove, func(i, j int) bool { return toRemove[i].clientID < toRemove[j].clientID })
 
 		// Store a value to use so that we can retain our position when iterating down the queue index
 		indexIterator := len(queue.index) - 1
@@ -81,11 +81,11 @@ func (queue *Queue) Start() {
 		// Remove any clients that are pending removal
 		for index := len(toRemove) - 1; index >= 0; index-- {
 			// Remove from the queue (map)
-			removalIndex := toRemove[index]
+			removalIndex := toRemove[index].clientID
 			deletedClientPID := queue.clients[removalIndex].PublicID
 			queue.clients[removalIndex].PendingKill = true
 
-			go connection.Close(queue.clients[removalIndex].connection.WS, protocol.NewMessage(protocol.WSMTText, protocol.WSCInfo, ""))
+			go connection.Close(queue.clients[removalIndex].connection.WS, protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
 			delete(queue.clients, removalIndex)
 
 			// Remove from the queue index (slice)
@@ -132,8 +132,12 @@ func (queue *Queue) Add(client *Client) {
 }
 
 // Remove adds a client to the unregister queue, to be removed next cycle
-func (queue *Queue) Remove(client *Client) {
-	queue.unregister <- client.QueueID
+func (queue *Queue) Remove(client *Client, reason protocol.B2Code, message string) {
+	queue.unregister <- UnregisterRequest{
+		clientID: client.QueueID,
+		Reason:   reason,
+		Message:  message,
+	}
 }
 
 // Broadcast sends a message to all connected clients
@@ -152,14 +156,14 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) {
 		if (client1ReadyValid && client2ReadyValid) || timedOut {
 			if timedOut || !client1ReadyValid || !client2ReadyValid {
 				if !client1ReadyValid {
-					queue.Remove(clientPair.C1)
+					queue.Remove(clientPair.C1, protocol.WSCReadyCheckFailed, "")
 				} else {
 					clientPair.C1.IsReadyChecking = false
 					clientPair.C1.Ready = false
 				}
 
 				if !client2ReadyValid {
-					queue.Remove(clientPair.C2)
+					queue.Remove(clientPair.C2, protocol.WSCReadyCheckFailed, "")
 				} else {
 					clientPair.C2.IsReadyChecking = false
 					clientPair.C2.Ready = false
@@ -175,8 +179,8 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) {
 
 			clientPair.SendMatchConfirmedMessage(matchid)
 
-			queue.Remove(clientPair.C1)
-			queue.Remove(clientPair.C2)
+			queue.Remove(clientPair.C1, protocol.WSCInfo, "Match found - closing connection")
+			queue.Remove(clientPair.C2, protocol.WSCInfo, "Match found - closing connection")
 			return
 		}
 

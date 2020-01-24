@@ -36,4 +36,5 @@ const (
 	WSCMatchMakingGameFound B2Code = iota + matchMakingOffset
 	WSCMatchMakingReady
 	WSCMatchConfirmed
+	WSCReadyCheckFailed
 )

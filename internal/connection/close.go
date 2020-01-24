@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const closeWaitPeriod = time.Second * 5
+const closeWaitPeriod = time.Second * 1
 
 // Close closes a websocket connection immediately after sending the specified message
 func Close(wsconn *websocket.Conn, message protocol.Message) {

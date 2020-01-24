@@ -38,7 +38,7 @@ func (client *Client) pollReceive() {
 			}
 
 			log.Println("read error: ", err)
-			client.queue.Remove(client)
+			client.queue.Remove(client, protocol.WSCUnknownError, err.Error())
 			break
 		}
 	}
