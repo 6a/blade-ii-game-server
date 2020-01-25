@@ -24,13 +24,14 @@ var pollTimeMatchFound = 500 * time.Millisecond
 
 // Queue is a wrapper for the matchmaking queue
 type Queue struct {
-	index      []uint64
-	nextIndex  uint64
-	clients    map[uint64]*Client
-	register   chan *Client
-	unregister chan UnregisterRequest
-	broadcast  chan protocol.Message
-	commands   chan Command
+	index        []uint64
+	nextIndex    uint64
+	clients      map[uint64]*Client
+	register     chan *Client
+	unregister   chan UnregisterRequest
+	broadcast    chan protocol.Message
+	commands     chan Command
+	matchedPairs []ClientPair
 }
 
 // Start the queue's internal update loop
@@ -41,6 +42,7 @@ func (queue *Queue) Start() {
 	queue.unregister = make(chan UnregisterRequest, BufferSize)
 	queue.broadcast = make(chan protocol.Message, BufferSize)
 	queue.commands = make(chan Command, BufferSize)
+	queue.matchedPairs = make([]ClientPair, 0)
 
 	for {
 		start := time.Now()
@@ -110,11 +112,20 @@ func (queue *Queue) Start() {
 			client.Tick()
 		}
 
-		// Perform matchmaking - these pairs will be dealt with in the other goroutine loop
-		matchedClients := queue.matchMake()
-		for _, clientPair := range matchedClients {
-			clientPair.SendMatchStartMessage()
-			go queue.pollReadyCheck(clientPair)
+		// Perform matchmaking
+		queue.matchedPairs = append(queue.matchedPairs, queue.matchMake()...)
+		for index := len(queue.matchedPairs) - 1; index >= 0; index-- {
+			if !queue.matchedPairs[index].IsReadyChecking {
+				queue.matchedPairs[index].SendMatchStartMessage()
+			}
+
+			if queue.pollReadyCheck(queue.matchedPairs[index]) {
+				if len(queue.matchedPairs) == 1 {
+					queue.matchedPairs = make([]ClientPair, 0)
+				} else {
+					queue.matchedPairs = queue.matchedPairs[:len(queue.matchedPairs)-1]
+				}
+			}
 		}
 
 		// Wait til next iteration if the time taken is less than the designated poll time
@@ -145,52 +156,43 @@ func (queue *Queue) Broadcast(message protocol.Message) {
 	queue.broadcast <- message
 }
 
-func (queue *Queue) pollReadyCheck(clientPair ClientPair) {
-	start := time.Now()
+func (queue *Queue) pollReadyCheck(clientPair ClientPair) (finished bool) {
+	timedOut := time.Now().Sub(clientPair.ReadyStart) > readyCheckTime
+	client1ReadyValid := clientPair.C1.Ready && clientPair.C1.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
+	client2ReadyValid := clientPair.C2.Ready && clientPair.C2.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
 
-	for {
-		timedOut := time.Now().Sub(clientPair.ReadyStart) > readyCheckTime
-		client1ReadyValid := clientPair.C1.Ready && clientPair.C1.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
-		client2ReadyValid := clientPair.C2.Ready && clientPair.C2.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
-
-		if (client1ReadyValid && client2ReadyValid) || timedOut {
-			if timedOut || !client1ReadyValid || !client2ReadyValid {
-				if !client1ReadyValid {
-					queue.Remove(clientPair.C1, protocol.WSCReadyCheckFailed, "")
-				} else {
-					clientPair.C1.IsReadyChecking = false
-					clientPair.C1.Ready = false
-				}
-
-				if !client2ReadyValid {
-					queue.Remove(clientPair.C2, protocol.WSCReadyCheckFailed, "")
-				} else {
-					clientPair.C2.IsReadyChecking = false
-					clientPair.C2.Ready = false
-				}
-
-				return
+	if (client1ReadyValid && client2ReadyValid) || timedOut {
+		if timedOut || !client1ReadyValid || !client2ReadyValid {
+			if !client1ReadyValid {
+				queue.Remove(clientPair.C1, protocol.WSCReadyCheckFailed, "")
+			} else {
+				clientPair.C1.IsReadyChecking = false
+				clientPair.C1.Ready = false
 			}
 
-			matchid, err := database.CreateMatch(clientPair.C1.DBID, clientPair.C2.DBID)
-			if err != nil {
-				log.Printf("Failed to create a match: %s", err.Error())
+			if !client2ReadyValid {
+				queue.Remove(clientPair.C2, protocol.WSCReadyCheckFailed, "")
+			} else {
+				clientPair.C2.IsReadyChecking = false
+				clientPair.C2.Ready = false
 			}
 
-			clientPair.SendMatchConfirmedMessage(matchid)
-
-			queue.Remove(clientPair.C1, protocol.WSCInfo, "Match found - closing connection")
-			queue.Remove(clientPair.C2, protocol.WSCInfo, "Match found - closing connection")
-			return
+			return true
 		}
 
-		// Wait til next iteration if the time taken is less than the designated poll time
-		elapsed := time.Now().Sub(start)
-		remainingPollTime := pollTimeMatchFound - elapsed
-		if remainingPollTime > 0 {
-			time.Sleep(remainingPollTime)
+		matchid, err := database.CreateMatch(clientPair.C1.DBID, clientPair.C2.DBID)
+		if err != nil {
+			log.Printf("Failed to create a match: %s", err.Error())
 		}
+
+		clientPair.SendMatchConfirmedMessage(matchid)
+
+		queue.Remove(clientPair.C1, protocol.WSCInfo, "Match found - closing connection")
+		queue.Remove(clientPair.C2, protocol.WSCInfo, "Match found - closing connection")
+		return true
 	}
+
+	return false
 }
 
 func (queue *Queue) matchMake() (pairs []ClientPair) {

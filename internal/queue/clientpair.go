@@ -9,9 +9,10 @@ import (
 
 // ClientPair is a light wrapper for a pair of client connections
 type ClientPair struct {
-	C1         *Client
-	C2         *Client
-	ReadyStart time.Time
+	C1              *Client
+	C2              *Client
+	ReadyStart      time.Time
+	IsReadyChecking bool
 }
 
 // NewPair creates a new ClientPair
@@ -25,6 +26,7 @@ func NewPair(c1 *Client, c2 *Client) ClientPair {
 // SendMatchStartMessage sends a match start message to both clients
 func (pair *ClientPair) SendMatchStartMessage() {
 	pair.ReadyStart = time.Now()
+	pair.IsReadyChecking = true
 
 	pair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchMakingGameFound, ""))
 	pair.C1.IsReadyChecking = true
