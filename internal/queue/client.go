@@ -1,13 +1,15 @@
 package queue
 
 import (
-	"log"
+	"sync"
 	"time"
 
 	"github.com/6a/blade-ii-game-server/internal/connection"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 	"github.com/gorilla/websocket"
 )
+
+const closeWaitPeriod = time.Second * 1
 
 // Client is a container for a websocket connection and its associate player data
 type Client struct {
@@ -21,6 +23,7 @@ type Client struct {
 	connection      *connection.Connection
 	queue           *Queue
 	PendingKill     bool
+	killLock        sync.Mutex
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
@@ -32,12 +35,12 @@ func (client *Client) StartEventLoop() {
 func (client *Client) pollReceive() {
 	for {
 		err := client.connection.ReadMessage()
-		if err != nil {
-			if client.PendingKill {
-				break
-			}
 
-			log.Println("read error: ", err)
+		if client.isPendingKill() {
+			break
+		}
+
+		if err != nil {
 			client.queue.Remove(client, protocol.WSCUnknownError, err.Error())
 			break
 		}
@@ -48,9 +51,14 @@ func (client *Client) pollSend() {
 	for {
 		message := client.connection.GetNextSendMessage()
 
+		if client.isPendingKill() {
+			break
+		}
+
 		err := client.connection.WriteMessage(message)
 		if err != nil {
-			log.Println("write error: ", err)
+			client.queue.Remove(client, protocol.WSCUnknownError, err.Error())
+			break
 		}
 	}
 }
@@ -76,6 +84,24 @@ func (client *Client) Tick() {
 // SendMessage sends a message to the client
 func (client *Client) SendMessage(message protocol.Message) {
 	client.connection.SendMessage(message)
+}
+
+// Close closes a websocket connection immediately after sending the specified message
+func (client *Client) Close(message protocol.Message) {
+	client.killLock.Lock()
+	defer client.killLock.Unlock()
+	client.PendingKill = true
+
+	client.SendMessage(message)
+
+	time.Sleep(closeWaitPeriod)
+	client.connection.WS.Close()
+}
+
+func (client *Client) isPendingKill() bool {
+	client.killLock.Lock()
+	defer client.killLock.Unlock()
+	return client.PendingKill
 }
 
 // NewClient creates a new Client

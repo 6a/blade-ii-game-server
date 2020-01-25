@@ -1,4 +1,4 @@
-package connection
+package transactions
 
 import (
 	"time"
@@ -9,8 +9,8 @@ import (
 
 const closeWaitPeriod = time.Second * 1
 
-// Close closes a websocket connection immediately after sending the specified message
-func Close(wsconn *websocket.Conn, message protocol.Message) {
+// Discard sends a close message and later closes a websocket connection
+func Discard(wsconn *websocket.Conn, message protocol.Message) {
 	wsconn.WriteMessage(protocol.WSMTText, message.GetPayloadBytes())
 
 	time.Sleep(closeWaitPeriod)

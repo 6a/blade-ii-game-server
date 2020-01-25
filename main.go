@@ -15,7 +15,9 @@ const (
 	keyPath  = "crypto/server.key"
 )
 
-var addr = flag.String("address", "127.0.0.1:8080", "Service Address")
+const address = "127.0.0.1:8080"
+
+var addr = flag.String("address", address, "Service Address")
 
 func main() {
 	flag.Parse()
@@ -27,10 +29,12 @@ func main() {
 	// Matchmaking queue
 	matchMakingQueue := matchmaking.NewMatchMaking()
 	matchMakingQueue.Init()
+
 	routes.SetupMatchMaking(&matchMakingQueue)
 
 	// Games
 
 	// Serve
+	log.Printf("Game server listening on: %v", address)
 	log.Fatal(http.ListenAndServeTLS(*addr, certPath, keyPath, nil))
 }

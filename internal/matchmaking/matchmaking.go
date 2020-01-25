@@ -20,7 +20,7 @@ func (mm *MatchMaking) AddClient(wsconn *websocket.Conn, dbid uint64, pid string
 // Init initializes the matchmaking queue including starting the internal loop
 // Returns instantly after wrapping the logic in a goroutine
 func (mm *MatchMaking) Init() {
-	go mm.queue.Start()
+	mm.queue.Start()
 }
 
 // NewMatchMaking creates a new matchmaking queue, and starts a goroutine that runs the main internal loop

@@ -5,7 +5,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/6a/blade-ii-game-server/internal/connection"
 	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
@@ -31,7 +30,7 @@ type Queue struct {
 	matchedPairs []ClientPair
 }
 
-// Start the queue's internal update loop
+// Start the queue's internal update loop in a separate goroutine
 func (queue *Queue) Start() {
 	queue.index = make([]uint64, 0)
 	queue.clients = make(map[uint64]*Client)
@@ -41,6 +40,11 @@ func (queue *Queue) Start() {
 	queue.commands = make(chan Command, BufferSize)
 	queue.matchedPairs = make([]ClientPair, 0)
 
+	go queue.MainLoop()
+}
+
+// MainLoop is the main logic loop for the queue
+func (queue *Queue) MainLoop() {
 	for {
 		start := time.Now()
 
@@ -82,9 +86,7 @@ func (queue *Queue) Start() {
 			// Remove from the queue (map)
 			removalIndex := toRemove[index].clientID
 			deletedClientPID := queue.clients[removalIndex].PublicID
-			queue.clients[removalIndex].PendingKill = true
-
-			go connection.Close(queue.clients[removalIndex].connection.WS, protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
+			go queue.clients[removalIndex].Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
 			delete(queue.clients, removalIndex)
 
 			// Remove from the queue index (slice)

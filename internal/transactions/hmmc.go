@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/6a/blade-ii-game-server/internal/connection"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 
 	"github.com/6a/blade-ii-game-server/internal/database"
@@ -27,7 +26,7 @@ func HandleMMConnection(wsconn *websocket.Conn, mm *matchmaking.MatchMaking) {
 	go func() {
 		mt, payload, err := wsconn.ReadMessage()
 		if err != nil {
-			connection.Close(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
+			Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
 			return
 		}
 
@@ -41,19 +40,19 @@ func HandleMMConnection(wsconn *websocket.Conn, mm *matchmaking.MatchMaking) {
 	case res := <-readyChannel:
 		id, pid, b2code, err := checkAuth(res.Payload)
 		if err != nil {
-			connection.Close(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
+			Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
 			return
 		}
 
 		mmr, err := database.GetMMR(id)
 		if err != nil {
-			connection.Close(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
+			Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
 			return
 		}
 
 		mm.AddClient(wsconn, id, pid, mmr)
 	case <-time.After(mmConnectTimeout):
-		connection.Close(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, "Auth message not received"))
+		Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, "Auth message not received"))
 		return
 	}
 }
