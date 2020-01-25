@@ -17,10 +17,7 @@ const BufferSize = 32
 const readyCheckTime = time.Second * 5
 
 // How frequently to update the matchmaking queue (minimum wait between iterations)
-var pollTime = 500 * time.Millisecond
-
-// How frequently to update the match found goroutine (minimum wait between iterations)
-var pollTimeMatchFound = 500 * time.Millisecond
+var pollTime = 1000 * time.Millisecond
 
 // Queue is a wrapper for the matchmaking queue
 type Queue struct {
