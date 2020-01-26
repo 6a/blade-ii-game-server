@@ -19,8 +19,5 @@
 __debug*
 .vscode/launch.json
 
-# crypto
-/crypto
-
 # launch tester
 run.ps1
