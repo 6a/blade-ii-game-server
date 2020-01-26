@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/6a/blade-ii-game-server/internal/database"
-	"github.com/6a/blade-ii-game-server/internal/matchmaking"
-	"github.com/6a/blade-ii-game-server/internal/routes"
+	"github.com/6a/blade-ii-matchmaking-server/internal/database"
+	"github.com/6a/blade-ii-matchmaking-server/internal/matchmaking"
+	"github.com/6a/blade-ii-matchmaking-server/internal/routes"
 )
 
 const (

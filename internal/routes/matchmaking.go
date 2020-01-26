@@ -3,10 +3,10 @@ package routes
 import (
 	"net/http"
 
-	"github.com/6a/blade-ii-game-server/internal/protocol"
-	"github.com/6a/blade-ii-game-server/internal/transactions"
+	"github.com/6a/blade-ii-matchmaking-server/internal/protocol"
+	"github.com/6a/blade-ii-matchmaking-server/internal/transactions"
 
-	"github.com/6a/blade-ii-game-server/internal/matchmaking"
+	"github.com/6a/blade-ii-matchmaking-server/internal/matchmaking"
 	"github.com/gorilla/websocket"
 )
 

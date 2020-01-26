@@ -3,7 +3,7 @@ package connection
 import (
 	"time"
 
-	"github.com/6a/blade-ii-game-server/internal/protocol"
+	"github.com/6a/blade-ii-matchmaking-server/internal/protocol"
 
 	"github.com/gorilla/websocket"
 )

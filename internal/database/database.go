@@ -33,7 +33,7 @@ func Init() {
 
 	db = mysql
 
-	log.Println("Database connected successfully")
+	log.Println("Database connection initiated successfully")
 }
 
 // ValidateAuth checks the specified user ID and token to see if they match and are valid

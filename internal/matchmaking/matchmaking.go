@@ -1,7 +1,7 @@
 package matchmaking
 
 import (
-	"github.com/6a/blade-ii-game-server/internal/queue"
+	"github.com/6a/blade-ii-matchmaking-server/internal/queue"
 	"github.com/gorilla/websocket"
 )
 
