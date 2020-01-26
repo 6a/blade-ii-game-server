@@ -84,8 +84,8 @@ func (client *Client) SendMessage(message protocol.Message) {
 // Close closes a websocket connection immediately after sending the specified message
 func (client *Client) Close(message protocol.Message) {
 	client.killLock.Lock()
-	defer client.killLock.Unlock()
 	client.PendingKill = true
+	client.killLock.Unlock()
 
 	client.SendMessage(message)
 
