@@ -21,3 +21,6 @@ __debug*
 
 # crypto
 /crypto
+
+# launch tester
+run.ps1
