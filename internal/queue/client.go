@@ -74,8 +74,6 @@ func (client *Client) Tick() {
 			client.ReadyTime = time.Now()
 		}
 	}
-
-	// Update values
 }
 
 // SendMessage sends a message to the client
