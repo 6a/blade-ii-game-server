@@ -73,9 +73,6 @@ func (client *Client) Tick() {
 			client.Ready = true
 			client.ReadyTime = time.Now()
 		}
-
-		// For now we just relay all incoming messages
-		client.connection.SendMessage(message)
 	}
 
 	// Update values
