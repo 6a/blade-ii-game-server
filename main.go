@@ -16,8 +16,9 @@ const (
 )
 
 const address = "127.0.0.1:8080"
+const addressFlag = "address"
 
-var addr = flag.String("address", address, "Service Address")
+var addr = flag.String(addressFlag, address, "Service Address")
 
 func main() {
 	flag.Parse()
