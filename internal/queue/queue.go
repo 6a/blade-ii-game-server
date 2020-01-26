@@ -85,25 +85,28 @@ func (queue *Queue) MainLoop() {
 		for index := len(toRemove) - 1; index >= 0; index-- {
 			// Remove from the queue (map)
 			removalIndex := toRemove[index].clientID
-			deletedClientPID := queue.clients[removalIndex].PublicID
-			go queue.clients[removalIndex].Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
-			delete(queue.clients, removalIndex)
 
-			// Remove from the queue index (slice)
-			for indexIterator >= 0 {
-				if queue.index[index] == removalIndex {
-					if len(queue.index) == 1 {
-						queue.index = make([]uint64, 0)
-					} else {
-						queue.index = append(queue.index[:indexIterator], queue.index[indexIterator+1:]...)
+			if client, ok := queue.clients[removalIndex]; ok {
+				deletedClientPID := client.PublicID
+				go client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
+				delete(queue.clients, removalIndex)
+
+				// Remove from the queue index (slice)
+				for indexIterator >= 0 {
+					if queue.index[index] == removalIndex {
+						if len(queue.index) == 1 {
+							queue.index = make([]uint64, 0)
+						} else {
+							queue.index = append(queue.index[:indexIterator], queue.index[indexIterator+1:]...)
+						}
+						break
 					}
-					break
+
+					indexIterator--
 				}
 
-				indexIterator--
+				log.Printf("Client [%s] left the matchmaking queue. Total clients: %v", deletedClientPID, len(queue.clients))
 			}
-
-			log.Printf("Client [%s] left the matchmaking queue. Total clients: %v", deletedClientPID, len(queue.clients))
 		}
 
 		// Tick all clients
