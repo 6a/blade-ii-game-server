@@ -10,12 +10,7 @@ import (
 	"github.com/6a/blade-ii-matchmaking-server/internal/routes"
 )
 
-const (
-	certPath = "crypto/server.crt"
-	keyPath  = "crypto/server.key"
-)
-
-const address = "127.0.0.1:8080"
+const address = "localhost:20000"
 const addressFlag = "address"
 
 var addr = flag.String(addressFlag, address, "Service Address")
@@ -37,5 +32,5 @@ func main() {
 
 	// Serve
 	log.Printf("Game server listening on: %v", address)
-	log.Fatal(http.ListenAndServeTLS(*addr, certPath, keyPath, nil))
+	log.Fatal(http.ListenAndServe(*addr, nil))
 }
