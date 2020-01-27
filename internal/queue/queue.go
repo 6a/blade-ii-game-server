@@ -203,14 +203,15 @@ func (queue *Queue) matchMake() (pairs []ClientPair) {
 
 	currentPair := ClientPair{}
 	for _, index := range queue.index {
-		client := queue.clients[index]
-		if !client.IsReadyChecking {
-			if currentPair.C1 == nil {
-				currentPair.C1 = client
-			} else {
-				currentPair.C2 = client
-				pairs = append(pairs, currentPair)
-				currentPair = ClientPair{}
+		if client, ok := queue.clients[index]; ok {
+			if !client.IsReadyChecking {
+				if currentPair.C1 == nil {
+					currentPair.C1 = client
+				} else {
+					currentPair.C2 = client
+					pairs = append(pairs, currentPair)
+					currentPair = ClientPair{}
+				}
 			}
 		}
 	}
