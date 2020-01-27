@@ -18,8 +18,7 @@
                     return false
                 }
 
-                //ws = new WebSocket("wss://ec2-3-8-92-216.eu-west-2.compute.amazonaws.com:443/matchmaking")
-                ws = new WebSocket("ws://localhost:20000/matchmaking")
+                ws = new WebSocket("wss://b2gs.jstanton.io:443/matchmaking")
 
                 ws.onopen = function (evt) {
                     print("OPEN - SENDING AUTH")
