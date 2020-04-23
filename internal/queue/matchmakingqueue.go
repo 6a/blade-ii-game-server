@@ -18,12 +18,12 @@ const readyCheckTime = time.Second * 5
 // How frequently to update the matchmaking queue (minimum wait between iterations)
 var pollTime = 1000 * time.Millisecond
 
-// Queue is a wrapper for the matchmaking queue
-type Queue struct {
+// MatchMakingQueue is a wrapper for the matchmaking queue
+type MatchMakingQueue struct {
 	index        []uint64
 	nextIndex    uint64
-	clients      map[uint64]*Client
-	register     chan *Client
+	clients      map[uint64]*MMClient
+	register     chan *MMClient
 	unregister   chan UnregisterRequest
 	broadcast    chan protocol.Message
 	commands     chan Command
@@ -31,10 +31,10 @@ type Queue struct {
 }
 
 // Start the queue's internal update loop in a separate goroutine
-func (queue *Queue) Start() {
+func (queue *MatchMakingQueue) Start() {
 	queue.index = make([]uint64, 0)
-	queue.clients = make(map[uint64]*Client)
-	queue.register = make(chan *Client, BufferSize)
+	queue.clients = make(map[uint64]*MMClient)
+	queue.register = make(chan *MMClient, BufferSize)
 	queue.unregister = make(chan UnregisterRequest, BufferSize)
 	queue.broadcast = make(chan protocol.Message, BufferSize)
 	queue.commands = make(chan Command, BufferSize)
@@ -44,7 +44,7 @@ func (queue *Queue) Start() {
 }
 
 // MainLoop is the main logic loop for the queue
-func (queue *Queue) MainLoop() {
+func (queue *MatchMakingQueue) MainLoop() {
 	for {
 		start := time.Now()
 
@@ -140,12 +140,12 @@ func (queue *Queue) MainLoop() {
 }
 
 // Add a client to the register queue, to be added next cycle
-func (queue *Queue) Add(client *Client) {
+func (queue *MatchMakingQueue) Add(client *MMClient) {
 	queue.register <- client
 }
 
 // Remove adds a client to the unregister queue, to be removed next cycle
-func (queue *Queue) Remove(client *Client, reason protocol.B2Code, message string) {
+func (queue *MatchMakingQueue) Remove(client *MMClient, reason protocol.B2Code, message string) {
 	queue.unregister <- UnregisterRequest{
 		clientID: client.QueueID,
 		Reason:   reason,
@@ -154,11 +154,11 @@ func (queue *Queue) Remove(client *Client, reason protocol.B2Code, message strin
 }
 
 // Broadcast sends a message to all connected clients
-func (queue *Queue) Broadcast(message protocol.Message) {
+func (queue *MatchMakingQueue) Broadcast(message protocol.Message) {
 	queue.broadcast <- message
 }
 
-func (queue *Queue) pollReadyCheck(clientPair ClientPair) (finished bool) {
+func (queue *MatchMakingQueue) pollReadyCheck(clientPair ClientPair) (finished bool) {
 	timedOut := time.Now().Sub(clientPair.ReadyStart) > readyCheckTime
 	client1ReadyValid := clientPair.C1.Ready && clientPair.C1.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
 	client2ReadyValid := clientPair.C2.Ready && clientPair.C2.ReadyTime.Sub(clientPair.ReadyStart) <= readyCheckTime
@@ -197,7 +197,7 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) (finished bool) {
 	return false
 }
 
-func (queue *Queue) matchMake() (pairs []ClientPair) {
+func (queue *MatchMakingQueue) matchMake() (pairs []ClientPair) {
 	// Matchmaking algo goes here. For now just return all the pairs we can put into pairs of two
 	pairs = make([]ClientPair, 0)
 
@@ -219,6 +219,6 @@ func (queue *Queue) matchMake() (pairs []ClientPair) {
 	return pairs
 }
 
-func (queue *Queue) processCommand(command Command) {
+func (queue *MatchMakingQueue) processCommand(command Command) {
 	log.Printf("Processing command of type [ %v ] with data [ %v ]", command.Type, command.Data)
 }

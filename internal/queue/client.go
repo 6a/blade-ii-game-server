@@ -11,8 +11,8 @@ import (
 
 const closeWaitPeriod = time.Second * 1
 
-// Client is a container for a websocket connection and its associate player data
-type Client struct {
+// MMClient is a container for a websocket connection and its associate player data
+type MMClient struct {
 	DBID            uint64
 	PublicID        string
 	QueueID         uint64
@@ -21,18 +21,18 @@ type Client struct {
 	ReadyTime       time.Time
 	IsReadyChecking bool
 	connection      *connection.Connection
-	queue           *Queue
+	queue           *MatchMakingQueue
 	PendingKill     bool
 	killLock        sync.Mutex
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
-func (client *Client) StartEventLoop() {
+func (client *MMClient) StartEventLoop() {
 	go client.pollReceive()
 	go client.pollSend()
 }
 
-func (client *Client) pollReceive() {
+func (client *MMClient) pollReceive() {
 	for {
 		err := client.connection.ReadMessage()
 
@@ -47,7 +47,7 @@ func (client *Client) pollReceive() {
 	}
 }
 
-func (client *Client) pollSend() {
+func (client *MMClient) pollSend() {
 	for {
 		message := client.connection.GetNextSendMessage()
 
@@ -64,7 +64,7 @@ func (client *Client) pollSend() {
 }
 
 // Tick reads any incoming messages and passes outgoing messages to the queue
-func (client *Client) Tick() {
+func (client *MMClient) Tick() {
 	// Process receive queue
 	for len(client.connection.ReceiveQueue) > 0 {
 		message := client.connection.GetNextReceiveMessage()
@@ -77,12 +77,12 @@ func (client *Client) Tick() {
 }
 
 // SendMessage sends a message to the client
-func (client *Client) SendMessage(message protocol.Message) {
+func (client *MMClient) SendMessage(message protocol.Message) {
 	client.connection.SendMessage(message)
 }
 
 // Close closes a websocket connection immediately after sending the specified message
-func (client *Client) Close(message protocol.Message) {
+func (client *MMClient) Close(message protocol.Message) {
 	client.killLock.Lock()
 	client.PendingKill = true
 	client.killLock.Unlock()
@@ -93,17 +93,17 @@ func (client *Client) Close(message protocol.Message) {
 	client.connection.WS.Close()
 }
 
-func (client *Client) isPendingKill() bool {
+func (client *MMClient) isPendingKill() bool {
 	client.killLock.Lock()
 	defer client.killLock.Unlock()
 	return client.PendingKill
 }
 
 // NewClient creates a new Client
-func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int, queue *Queue) Client {
+func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int, queue *MatchMakingQueue) MMClient {
 	connection := connection.NewConnection(wsconn)
 
-	return Client{
+	return MMClient{
 		connection: &connection,
 		DBID:       dbid,
 		PublicID:   pid,

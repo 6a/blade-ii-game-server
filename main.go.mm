@@ -22,13 +22,15 @@ func main() {
 	// Init database connection
 	database.Init()
 
-	// Game queue
+	// Matchmaking queue
 	matchMakingQueue := matchmaking.NewMatchMaking()
 	matchMakingQueue.Init()
 
 	routes.SetupMatchMaking(&matchMakingQueue)
 
+	// Games
+
 	// Serve
-	log.Printf("Game server listening on: %v", address)
+	log.Printf("Matchmaking server listening on: %v", address)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
