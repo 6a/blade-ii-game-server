@@ -5,8 +5,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/6a/blade-ii-matchmaking-server/internal/database"
-	"github.com/6a/blade-ii-matchmaking-server/internal/protocol"
+	"github.com/6a/blade-ii-game-server/internal/database"
+	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
 
 // BufferSize is the size of each message queue's buffer

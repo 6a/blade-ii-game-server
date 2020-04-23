@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/6a/blade-ii-matchmaking-server/internal/protocol"
+	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
 
 // ClientPair is a light wrapper for a pair of client connections
