@@ -10,7 +10,7 @@ import (
 	"github.com/6a/blade-ii-matchmaking-server/internal/routes"
 )
 
-const address = "localhost:20000"
+const address = "localhost:80"
 const addressFlag = "address"
 
 var addr = flag.String(addressFlag, address, "Service Address")
