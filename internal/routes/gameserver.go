@@ -15,13 +15,13 @@ var gsupgrader = websocket.Upgrader{
 }
 
 // SetupGameServer sets up the game server endpoint
-func SetupGameServer(gs *gameserver.GameServer) {
+func SetupGameServer(gs *gameserver.Server) {
 	http.HandleFunc("/gameserver", func(w http.ResponseWriter, r *http.Request) {
 		wsconn, err := gsupgrader.Upgrade(w, r, nil)
 		if err != nil {
 			transactions.Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthBadCredentials, err.Error()))
 		}
 
-		// go transactions.HandleGSConnection(wsconn, gs)
+		go transactions.HandleGSConnection(wsconn, gs)
 	})
 }

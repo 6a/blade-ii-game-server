@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/6a/blade-ii-game-server/internal/database"
-	"github.com/6a/blade-ii-game-server/internal/matchmaking"
+	"github.com/6a/blade-ii-game-server/internal/gameserver"
 	"github.com/6a/blade-ii-game-server/internal/routes"
 )
 
@@ -22,11 +22,11 @@ func main() {
 	// Init database connection
 	database.Init()
 
-	// Game queue
-	matchMakingQueue := matchmaking.NewMatchMaking()
-	matchMakingQueue.Init()
+	// Game server
+	gameServer := gameserver.NewGameServer()
+	gameServer.Init()
 
-	routes.SetupMatchMaking(&matchMakingQueue)
+	routes.SetupGameServer(&gameServer)
 
 	// Serve
 	log.Printf("Game server listening on: %v", address)

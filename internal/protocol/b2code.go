@@ -8,6 +8,7 @@ const (
 	connectionOffset  B2Code = 100
 	authOffset               = 200
 	matchMakingOffset        = 300
+	matchOffset              = 400
 )
 
 // WSCInfo is a generic all-purpose code. Try to avoid using this unless the message can be safely ignored
@@ -37,4 +38,12 @@ const (
 	WSCMatchMakingReady
 	WSCMatchConfirmed
 	WSCReadyCheckFailed
+)
+
+// Match
+const (
+	WSCMatchID B2Code = iota + matchOffset
+	WSCMatchIDExpected
+	WSCMatchIDBadFormat
+	WSCMatchInvalid
 )

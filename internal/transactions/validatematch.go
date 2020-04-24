@@ -1,0 +1,27 @@
+package transactions
+
+import (
+	"errors"
+	"strconv"
+
+	"github.com/6a/blade-ii-game-server/internal/database"
+	"github.com/6a/blade-ii-game-server/internal/protocol"
+)
+
+func validateMatch(clientID uint64, payload protocol.Payload) (matchID uint64, wscode protocol.B2Code, err error) {
+	if payload.Code != protocol.WSCMatchID {
+		return matchID, protocol.WSCMatchIDExpected, errors.New("Match ID expected but received something else")
+	}
+
+	matchID, err = strconv.ParseUint(payload.Message, 10, 64)
+	if err != nil {
+		return matchID, protocol.WSCMatchIDBadFormat, errors.New("Match ID format invalid or missing")
+	}
+
+	valid, err := database.ValidateMatch(clientID, matchID)
+	if err != nil || !valid {
+		return matchID, protocol.WSCMatchInvalid, err
+	}
+
+	return matchID, wscode, err
+}

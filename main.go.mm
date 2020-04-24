@@ -22,11 +22,11 @@ func main() {
 	// Init database connection
 	database.Init()
 
-	// Matchmaking queue
-	matchMakingQueue := matchmaking.NewMatchMaking()
-	matchMakingQueue.Init()
+	// Matchmaking server
+	matchMakingServer := matchmaking.NewMatchMaking()
+	matchMakingServer.Init()
 
-	routes.SetupMatchMaking(&matchMakingQueue)
+	routes.SetupMatchMaking(&matchMakingServer)
 
 	// Games
 
