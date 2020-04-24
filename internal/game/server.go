@@ -1,13 +1,17 @@
-package gameserver
+package game
 
 import (
-	"github.com/6a/blade-ii-game-server/internal/queue"
 	"github.com/gorilla/websocket"
 )
 
 // Server is the game server itself
 type Server struct {
-	queue queue.MatchMakingQueue
+	matches  map[uint64]*Match
+	register chan *GClient
+	// unregister   chan UnregisterRequest
+	// broadcast    chan protocol.Message
+	// commands     chan Command
+	// matchedPairs []ClientPair
 }
 
 // AddClient takes a new client and their various data, wraps them up and adds them to the game server
@@ -19,11 +23,11 @@ func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, mat
 
 // Init initializes the game server including starting the internal loop
 func (gs *Server) Init() {
-	gs.queue.Start()
+	// gs.queue.Start()
 }
 
-// NewGameServer creates a new game server
-func NewGameServer() Server {
+// NewServer creates a new game server
+func NewServer() Server {
 	gs := Server{}
 	return gs
 }

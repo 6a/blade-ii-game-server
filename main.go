@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/6a/blade-ii-game-server/internal/database"
-	"github.com/6a/blade-ii-game-server/internal/gameserver"
+	"github.com/6a/blade-ii-game-server/internal/game"
 	"github.com/6a/blade-ii-game-server/internal/routes"
 )
 
@@ -23,7 +23,7 @@ func main() {
 	database.Init()
 
 	// Game server
-	gameServer := gameserver.NewGameServer()
+	gameServer := game.NewServer()
 	gameServer.Init()
 
 	routes.SetupGameServer(&gameServer)

@@ -3,7 +3,7 @@ package transactions
 import (
 	"time"
 
-	"github.com/6a/blade-ii-game-server/internal/gameserver"
+	"github.com/6a/blade-ii-game-server/internal/game"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 
 	"github.com/6a/blade-ii-game-server/internal/database"
@@ -19,7 +19,7 @@ const connectionTimeOut = time.Second * 5
 //
 // If it does not receive an auth message and match ID within the timeout period, it drops the
 // connection
-func HandleGSConnection(wsconn *websocket.Conn, gs *gameserver.Server) {
+func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 	authChannel := waitForMessageAsync(wsconn)
 	matchIDChannel := waitForMessageAsync(wsconn)
 
@@ -53,6 +53,7 @@ func HandleGSConnection(wsconn *websocket.Conn, gs *gameserver.Server) {
 			}
 
 			gs.AddClient(wsconn, id, pid, matchID)
+			return
 
 		case <-time.After(connectionTimeOut):
 			Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, "Auth or match ID not received"))

@@ -1,4 +1,4 @@
-package queue
+package matchmaking
 
 import (
 	"sync"
@@ -21,7 +21,7 @@ type MMClient struct {
 	ReadyTime       time.Time
 	IsReadyChecking bool
 	connection      *connection.Connection
-	queue           *MatchMakingQueue
+	queue           *Queue
 	PendingKill     bool
 	killLock        sync.Mutex
 }
@@ -100,7 +100,7 @@ func (client *MMClient) isPendingKill() bool {
 }
 
 // NewClient creates a new Client
-func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int, queue *MatchMakingQueue) MMClient {
+func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int, queue *Queue) MMClient {
 	connection := connection.NewConnection(wsconn)
 
 	return MMClient{

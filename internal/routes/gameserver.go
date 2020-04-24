@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"github.com/6a/blade-ii-game-server/internal/gameserver"
+	"github.com/6a/blade-ii-game-server/internal/game"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 	"github.com/6a/blade-ii-game-server/internal/transactions"
 
@@ -15,8 +15,8 @@ var gsupgrader = websocket.Upgrader{
 }
 
 // SetupGameServer sets up the game server endpoint
-func SetupGameServer(gs *gameserver.Server) {
-	http.HandleFunc("/gameserver", func(w http.ResponseWriter, r *http.Request) {
+func SetupGameServer(gs *game.Server) {
+	http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
 		wsconn, err := gsupgrader.Upgrade(w, r, nil)
 		if err != nil {
 			transactions.Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthBadCredentials, err.Error()))

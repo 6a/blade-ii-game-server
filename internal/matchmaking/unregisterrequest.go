@@ -1,4 +1,4 @@
-package queue
+package matchmaking
 
 import (
 	"github.com/6a/blade-ii-game-server/internal/protocol"

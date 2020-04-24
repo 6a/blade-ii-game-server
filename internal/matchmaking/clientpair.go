@@ -1,4 +1,4 @@
-package queue
+package matchmaking
 
 import (
 	"fmt"

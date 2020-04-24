@@ -1,18 +1,17 @@
 package matchmaking
 
 import (
-	"github.com/6a/blade-ii-game-server/internal/queue"
 	"github.com/gorilla/websocket"
 )
 
 // Server is the matchmaking server itself
 type Server struct {
-	queue queue.MatchMakingQueue
+	queue Queue
 }
 
 // AddClient takes a new client and their various data, wraps them up and adds them to the matchmaking server
 func (ms *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int) {
-	client := queue.NewClient(wsconn, dbid, pid, mmr, &ms.queue)
+	client := NewClient(wsconn, dbid, pid, mmr, &ms.queue)
 	client.StartEventLoop()
 	ms.queue.Add(&client)
 }
@@ -22,8 +21,8 @@ func (ms *Server) Init() {
 	ms.queue.Start()
 }
 
-// NewMatchMakingServer creates a new matchmaking server
-func NewMatchMakingServer() Server {
+// NewServer creates a new matchmaking server
+func NewServer() Server {
 	ms := Server{}
 	return ms
 }
