@@ -28,6 +28,14 @@ func main() {
 
 	routes.SetupGameServer(&gameServer)
 
+	// for i := 0; i < 100; i++ {
+	// 	cards, dtv := game.Generate()
+	// 	initialisedCards := game.Initialise(cards, dtv)
+
+	// 	log.Print(cards)
+	// 	log.Print(initialisedCards)
+	// }
+
 	// Serve
 	log.Printf("Game server listening on: %v", address)
 	log.Fatal(http.ListenAndServe(*addr, nil))

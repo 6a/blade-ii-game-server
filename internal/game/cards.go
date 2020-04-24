@@ -5,11 +5,12 @@ import (
 	"math"
 	"math/rand"
 	"strconv"
+	"time"
 )
 
 const delimiter string = "."
 const maxDrawsOnStart uint8 = 3
-const postInitialisationDeckSize uint8 = 4
+const postInitialisationDeckSize uint8 = 5
 
 // Cards is a container for all the cards on the field
 type Cards struct {
@@ -47,7 +48,12 @@ func (c *Cards) Serialize() string {
 }
 
 // Generate generates a new set of cards for a match - has additional checks to ensure that the match is not unwinnable from the first move etc
-func Generate() (cards Cards) {
+func Generate() (cards Cards, drawsUntilValid uint) {
+
+	// This probably doenst need to be done every time so..
+	// TODO determine if this is better off being called just once
+	rand.Seed(time.Now().UTC().UnixNano())
+	rand.Seed(time.Now().UTC().UnixNano())
 
 	// Add all the cards (ref: https://www.reddit.com/r/Falcom/comments/fxt5nq/can_i_buy_the_card_game_blade_anywhere/fmxo8qo/)
 	pool := []Card{
@@ -67,6 +73,7 @@ func Generate() (cards Cards) {
 	var success = false
 	for !success {
 		permutation := rand.Perm(len(pool))
+		cards = Cards{}
 
 		// Fill player 1 deck using the permutation
 		for i := 0; i < 15; i++ {
@@ -75,26 +82,87 @@ func Generate() (cards Cards) {
 
 		// Fill player 2 deck using the permutation
 		for i := 15; i < 30; i++ {
-			cards.Player2Deck = append(cards.Player1Deck, pool[permutation[i]])
+			cards.Player2Deck = append(cards.Player2Deck, pool[permutation[i]])
 		}
 
 		// Check the cards validity - a result of true will cause the loop to exit
-		success = validateCards(&cards)
+		success, drawsUntilValid = validateCards(&cards)
 	}
 
-	return cards
+	return cards, drawsUntilValid
 }
 
-// Initialise simulates the first moves of the game until a playable state is reached
-func Initialise(inCards Cards) (outCards Cards) {
+// Initialise simulates the first moves of the game until a playable state is reached - dont call this on a deck before its validated
+func Initialise(inCards Cards, drawsUntilValid uint) (outCards Cards) {
+
+	// Copy into out value
+	outCards = inCards.Copy()
+
+	// Player 1 deck to player 1 hand
+
+	outCards.Player1Hand = outCards.Player1Deck[postInitialisationDeckSize:]
+	reverseCardArray(outCards.Player1Hand)
+	outCards.Player1Deck = outCards.Player1Deck[:postInitialisationDeckSize]
+
+	// Player 2 deck to player 2 hand
+	outCards.Player2Hand = outCards.Player2Deck[postInitialisationDeckSize:]
+	reverseCardArray(outCards.Player2Hand)
+	outCards.Player2Deck = outCards.Player2Deck[:postInitialisationDeckSize]
+
+	if drawsUntilValid > 1 {
+		// Player 1 deck to player 1 discard
+		p1Index := uint(len(outCards.Player1Deck)) - (drawsUntilValid - 2) - 1
+		outCards.Player1Discard = outCards.Player1Deck[p1Index:]
+		outCards.Player1Deck = outCards.Player1Deck[:p1Index]
+
+		// Player 2 deck to player 2 discard
+		p2Index := uint(len(outCards.Player2Deck)) - (drawsUntilValid - 2) - 1
+		outCards.Player2Discard = outCards.Player2Deck[p2Index:]
+		outCards.Player2Deck = outCards.Player2Deck[:p2Index]
+	}
+
+	// Player 1 deck to player 1 field
+	outCards.Player1Field = outCards.Player1Deck[len(outCards.Player1Deck)-1:]
+	outCards.Player1Deck = outCards.Player1Deck[:len(outCards.Player1Deck)-1]
+
+	// Player 2 deck to player 2 field
+	outCards.Player2Field = outCards.Player2Deck[len(outCards.Player2Deck)-1:]
+	outCards.Player2Deck = outCards.Player2Deck[:len(outCards.Player2Deck)-1]
+
+	return outCards
+}
+
+// Copy returns a deep copy of this cards object
+func (c Cards) Copy() (outCards Cards) {
+	// Size all the fields
+	outCards.Player1Deck = make([]Card, len(c.Player1Deck))
+	outCards.Player1Hand = make([]Card, len(c.Player1Hand))
+	outCards.Player1Field = make([]Card, len(c.Player1Field))
+	outCards.Player1Discard = make([]Card, len(c.Player1Discard))
+	outCards.Player2Deck = make([]Card, len(c.Player2Deck))
+	outCards.Player2Hand = make([]Card, len(c.Player2Hand))
+	outCards.Player2Field = make([]Card, len(c.Player2Field))
+	outCards.Player2Discard = make([]Card, len(c.Player2Discard))
+
+	// Player 1 cards
+	copy(outCards.Player1Deck, c.Player1Deck)
+	copy(outCards.Player1Hand, c.Player1Hand)
+	copy(outCards.Player1Field, c.Player1Field)
+	copy(outCards.Player1Discard, c.Player1Discard)
+
+	// Player 2 cards
+	copy(outCards.Player2Deck, c.Player2Deck)
+	copy(outCards.Player2Hand, c.Player2Hand)
+	copy(outCards.Player2Field, c.Player2Field)
+	copy(outCards.Player2Discard, c.Player2Discard)
 
 	return outCards
 }
 
 // validateCards returns true if the current cards will NOT result in a bad game state, such as an insta-loss, or more than "maxDrawsOnStart" draws on the first turn
-func validateCards(cards *Cards) bool {
+func validateCards(cards *Cards) (valid bool, drawsUntilValid uint) {
 	for i := uint8(0); i < maxDrawsOnStart; i++ {
-		cardIndex := postInitialisationDeckSize - i
+		cardIndex := postInitialisationDeckSize - 1 - i
 
 		// Just incase... This also means that a valid move was not found within the first [ maxDrawsOnStart ]
 		if cardIndex < 0 {
@@ -109,20 +177,23 @@ func validateCards(cards *Cards) bool {
 
 			// Also ensure that the score difference from the opponent hand is beatable by the player that goes first (if their
 			// hand does not have any cards of high enough value they will insta-lose otherwise)
-			var cardSet *[]Card
+			var cardSet []Card
 			var opponentCard Card
 			var scoreToCheck uint8
 
 			if player1Score < player2Score {
-				cardSet = &cards.Player1Hand
+				cardSet = cards.Player1Deck[postInitialisationDeckSize:]
 				scoreToCheck = player1Score
 			} else {
-				cardSet = &cards.Player2Hand
+				cardSet = cards.Player2Deck[postInitialisationDeckSize:]
 			}
 
+			// Reverse the hand as we would in fact be drawing from the top of the deck to the start of the hand
+			reverseCardArray(cardSet)
+
 			// If, after the first legal draw, the player that goes first has a valid move to play, the cards are valid
-			if validFirstMoveAvailable(*cardSet, opponentCard, scoreToCheck) {
-				return true
+			if validFirstMoveAvailable(cardSet, opponentCard, scoreToCheck) {
+				return true, (uint(i) + 1)
 			}
 
 			// If we get to this point, the first draw was legal, but the player that goes first was immediately put into a position where they
@@ -131,7 +202,7 @@ func validateCards(cards *Cards) bool {
 		}
 	}
 
-	return false
+	return false, 0
 }
 
 // validFirstMoveAvailable returns true if the specified set of cards contains one that can beat the specified card (first move only, i.e. after initial draw from deck)
