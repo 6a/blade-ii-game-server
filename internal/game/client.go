@@ -16,6 +16,7 @@ type GClient struct {
 	DBID        uint64
 	MatchID     uint64
 	PublicID    string
+	DisplayName string
 	connection  *connection.Connection
 	server      *Server
 	PendingKill bool
@@ -91,13 +92,14 @@ func (client *GClient) isPendingKill() bool {
 }
 
 // NewClient creates a new Client
-func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int, gameServer *Server) GClient {
+func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, matchID uint64, gameServer *Server) GClient {
 	connection := connection.NewConnection(wsconn)
 
 	return GClient{
-		connection: &connection,
 		DBID:       dbid,
 		PublicID:   pid,
+		MatchID:    matchID,
+		connection: &connection,
 		server:     gameServer,
 	}
 }

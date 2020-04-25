@@ -26,7 +26,7 @@ type Queue struct {
 	register     chan *MMClient
 	unregister   chan UnregisterRequest
 	broadcast    chan protocol.Message
-	commands     chan Command
+	commands     chan protocol.Command
 	matchedPairs []ClientPair
 }
 
@@ -37,7 +37,7 @@ func (queue *Queue) Start() {
 	queue.register = make(chan *MMClient, BufferSize)
 	queue.unregister = make(chan UnregisterRequest, BufferSize)
 	queue.broadcast = make(chan protocol.Message, BufferSize)
-	queue.commands = make(chan Command, BufferSize)
+	queue.commands = make(chan protocol.Command, BufferSize)
 	queue.matchedPairs = make([]ClientPair, 0)
 
 	go queue.MainLoop()
@@ -58,14 +58,12 @@ func (queue *Queue) MainLoop() {
 				queue.index = append(queue.index, queue.nextIndex)
 				queue.nextIndex++
 				log.Printf("Client [%s] joined the matchmaking queue. Total clients: %v", client.PublicID, len(queue.clients))
-				client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthSuccess, "Added to matchmaking queue"))
+				client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCJoinedQueue, "Added to matchmaking queue"))
 				break
 			case clientid := <-queue.unregister:
 				toRemove = append(toRemove, clientid)
 				break
 			case message := <-queue.broadcast:
-				log.Println("Broadcast:")
-				log.Println(message)
 				for _, client := range queue.clients {
 					client.SendMessage(message)
 				}
@@ -219,6 +217,6 @@ func (queue *Queue) matchMake() (pairs []ClientPair) {
 	return pairs
 }
 
-func (queue *Queue) processCommand(command Command) {
+func (queue *Queue) processCommand(command protocol.Command) {
 	log.Printf("Processing command of type [ %v ] with data [ %v ]", command.Type, command.Data)
 }

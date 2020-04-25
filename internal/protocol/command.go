@@ -1,4 +1,4 @@
-package matchmaking
+package protocol
 
 // Queue Command types
 const (

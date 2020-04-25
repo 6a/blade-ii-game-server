@@ -16,34 +16,41 @@ const WSCInfo = 0
 
 // Connection
 const (
-	WSCConnectionTimeOut B2Code = iota + connectionOffset
-	WSCUnknownError
+	WSCConnectionTimeOut B2Code = 100
+	WSCUnknownError      B2Code = 101
 )
 
 // Auth
 const (
-	WSCAuthRequest B2Code = iota + authOffset
-	WSCAuthBadFormat
-	WSCAuthBadCredentials
-	WSCAuthExpired
-	WSCAuthBanned
-	WSCAuthExpected
-	WSCAuthNotReceived
-	WSCAuthSuccess
+	WSCAuthRequest        B2Code = 200
+	WSCAuthBadFormat      B2Code = 201
+	WSCAuthBadCredentials B2Code = 202
+	WSCAuthExpired        B2Code = 203
+	WSCAuthBanned         B2Code = 204
+	WSCAuthExpected       B2Code = 205
+	WSCAuthNotReceived    B2Code = 206
+	WSCAuthSuccess        B2Code = 207
 )
 
 // MatchMaking
 const (
-	WSCMatchMakingGameFound B2Code = iota + matchMakingOffset
-	WSCMatchMakingReady
-	WSCMatchConfirmed
-	WSCReadyCheckFailed
+	WSCMatchMakingGameFound B2Code = 300
+	WSCMatchMakingReady     B2Code = 301
+	WSCMatchConfirmed       B2Code = 302
+	WSCReadyCheckFailed     B2Code = 303
+	WSCJoinedQueue          B2Code = 304
 )
 
 // Match
 const (
-	WSCMatchID B2Code = iota + matchOffset
-	WSCMatchIDExpected
-	WSCMatchIDBadFormat
-	WSCMatchInvalid
+	WSCMatchID           B2Code = 400
+	WSCMatchIDExpected   B2Code = 401
+	WSCMatchIDBadFormat  B2Code = 402
+	WSCMatchInvalid      B2Code = 403
+	WSCMatchJoined       B2Code = 404
+	WSCMatchData         B2Code = 405
+	WSCMatchOpponentData B2Code = 406
+	WSCMatchMoveUpdate   B2Code = 407
+	WSCMatchForfeit      B2Code = 408
+	WSCMatchMessage      B2Code = 409
 )

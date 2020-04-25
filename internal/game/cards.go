@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-const delimiter string = "."
+// SerializedCardsDelimiter is the delimiter for serialized cards objects
+const SerializedCardsDelimiter string = "."
 const maxDrawsOnStart uint8 = 3
 const postInitialisationDeckSize uint8 = 5
 
@@ -25,8 +26,8 @@ type Cards struct {
 	Player2Discard []Card
 }
 
-// Serialize returns the string representation of the DECKS ONLY, as the other data is never required to be sent
-func (c *Cards) Serialize() string {
+// Serialized returns the string representation of the DECKS ONLY, as the other data is never required to be sent
+func (c *Cards) Serialized() string {
 
 	var buffer bytes.Buffer
 
@@ -36,7 +37,7 @@ func (c *Cards) Serialize() string {
 	}
 
 	// Another delimiter
-	buffer.WriteString(delimiter)
+	buffer.WriteString(SerializedCardsDelimiter)
 
 	// Player 2's deck is added
 	for _, card := range c.Player2Deck {
