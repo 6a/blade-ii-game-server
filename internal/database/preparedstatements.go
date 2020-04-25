@@ -12,6 +12,7 @@ type PreparedStatements struct {
 	GetMMR          string
 	CreateMatch     string
 	CheckMatchValid string
+	GetDisplayName  string
 }
 
 // Construct constructs all the prepared statements for this PreparedStatements object
@@ -21,6 +22,8 @@ func (p *PreparedStatements) Construct(envvars *EnvironmentVariables) {
 	p.GetMMR = fmt.Sprintf("SELECT `mmr` FROM `%v`.`%v` WHERE `id` = ?;", envvars.Name, envvars.TableProfiles)
 	p.CreateMatch = fmt.Sprintf("INSERT INTO `%v`.`%v` (`player1`, `player2`) VALUES (?, ?);", envvars.Name, envvars.TableMatches)
 	p.CheckMatchValid = fmt.Sprintf("SELECT EXISTS (SELECT * FROM `%v`.`%v` WHERE `id` = ? AND (`player1` = ? OR `player2` = ?));", envvars.Name, envvars.TableMatches)
+	p.GetDisplayName = fmt.Sprintf("SELECT `handle` FROM `%v`.`%v` WHERE `id` = ?;", envvars.Name, envvars.TableUsers)
+
 	log.Println("Prepared statements constructed successfully")
 }
 

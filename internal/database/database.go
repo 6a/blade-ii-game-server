@@ -107,13 +107,13 @@ func CreateMatch(client1ID uint64, client2ID uint64) (id int64, err error) {
 }
 
 // ValidateMatch returns true if the specified match exists, and the specified client is part of it
-func ValidateMatch(clientID uint64, matchID uint64) (valid bool, err error) {
+func ValidateMatch(userID uint64, matchID uint64) (valid bool, err error) {
 	statement, err := db.Prepare(pstatements.CheckMatchValid)
 
 	defer statement.Close()
 
 	var found bool
-	err = statement.QueryRow(matchID, clientID, clientID).Scan(&found)
+	err = statement.QueryRow(matchID, userID, userID).Scan(&found)
 	if err == sql.ErrNoRows {
 		return false, errors.New("Invalid - either the match does not exist, or the specified client is not part of it")
 	} else if err != nil {
@@ -121,6 +121,23 @@ func ValidateMatch(clientID uint64, matchID uint64) (valid bool, err error) {
 	}
 
 	return true, nil
+}
+
+// GetDisplayName returns the displayname for the specified user
+func GetDisplayName(userID uint64) (displayname string, err error) {
+	statement, err := db.Prepare(pstatements.GetDisplayName)
+	if err != nil {
+		return displayname, errors.New("Internal server error: Failed to prepare statement")
+	}
+
+	defer statement.Close()
+
+	err = statement.QueryRow(userID).Scan(&displayname)
+	if err != nil {
+		return displayname, errors.New("User does not exist")
+	}
+
+	return displayname, nil
 }
 
 func getUser(pid string) (id uint64, banned bool, err error) {

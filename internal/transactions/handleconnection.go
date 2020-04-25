@@ -22,8 +22,8 @@ const connectionTimeOut = time.Second * 5
 func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 	inChannel := waitForMessageAsync(wsconn, 2)
 
-	var id uint64
-	var pid string
+	var DBID uint64
+	var publicID string
 	var b2code protocol.B2Code
 	var err error
 	var authReceived bool = false
@@ -32,7 +32,7 @@ func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 		select {
 		case res := <-inChannel:
 			if !authReceived {
-				id, pid, b2code, err = checkAuth(res.Payload)
+				DBID, publicID, b2code, err = checkAuth(res.Payload)
 				if err != nil {
 					Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
 					return
@@ -40,13 +40,20 @@ func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 
 				authReceived = true
 			} else {
-				matchID, b2code, err := validateMatch(id, res.Payload)
+				matchID, b2code, err := validateMatch(DBID, res.Payload)
 				if err != nil {
 					Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
 					return
 				}
 
-				gs.AddClient(wsconn, id, pid, matchID)
+				// Grab the clients display name as well
+				displayname, err := database.GetDisplayName(DBID)
+				if err != nil {
+					Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
+					return
+				}
+
+				gs.AddClient(wsconn, DBID, publicID, displayname, matchID)
 				return
 			}
 		case <-time.After(connectionTimeOut):

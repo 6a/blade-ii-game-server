@@ -27,8 +27,8 @@ type Server struct {
 }
 
 // AddClient takes a new client and their various data, wraps them up and adds them to the game server
-func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, matchID uint64) {
-	client := NewClient(wsconn, dbid, pid, matchID, gs)
+func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname string, matchID uint64) {
+	client := NewClient(wsconn, dbid, pid, displayname, matchID, gs)
 	client.StartEventLoop()
 
 	gs.register <- &client
