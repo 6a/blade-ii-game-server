@@ -20,8 +20,7 @@ const connectionTimeOut = time.Second * 5
 // If it does not receive an auth message and match ID within the timeout period, it drops the
 // connection
 func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
-	authChannel := waitForMessageAsync(wsconn)
-	matchIDChannel := waitForMessageAsync(wsconn)
+	inChannel := waitForMessageAsync(wsconn, 2)
 
 	var id uint64
 	var pid string
@@ -31,32 +30,32 @@ func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 
 	for {
 		select {
-		case res := <-authChannel:
-			id, pid, b2code, err = checkAuth(res.Payload)
-			if err != nil {
-				Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
-				return
-			}
-
-			authReceived = true
-
-		case res := <-matchIDChannel:
+		case res := <-inChannel:
 			if !authReceived {
-				Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthNotReceived, ""))
+				id, pid, b2code, err = checkAuth(res.Payload)
+				if err != nil {
+					Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
+					return
+				}
+
+				authReceived = true
+			} else {
+				matchID, b2code, err := validateMatch(id, res.Payload)
+				if err != nil {
+					Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
+					return
+				}
+
+				gs.AddClient(wsconn, id, pid, matchID)
 				return
 			}
-
-			matchID, b2code, err := validateMatch(id, res.Payload)
-			if err != nil {
-				Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
-				return
-			}
-
-			gs.AddClient(wsconn, id, pid, matchID)
-			return
-
 		case <-time.After(connectionTimeOut):
-			Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, "Auth or match ID not received"))
+			if !authReceived {
+				Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthNotReceived, "Auth not received"))
+			} else {
+				Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchIDNotReceived, "Match ID not received"))
+			}
+
 			return
 		}
 	}
@@ -69,7 +68,7 @@ func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 // If it does not receive an auth message within the timeout period, it drops the
 // connection
 func HandleMMConnection(wsconn *websocket.Conn, mm *matchmaking.Server) {
-	authChannel := waitForMessageAsync(wsconn)
+	authChannel := waitForMessageAsync(wsconn, 1)
 
 	select {
 	case res := <-authChannel:

@@ -3,14 +3,6 @@ package protocol
 // B2Code is a typedef for non-system websocket messages
 type B2Code uint16
 
-// Offsets for various types of message
-const (
-	connectionOffset  B2Code = 100
-	authOffset               = 200
-	matchMakingOffset        = 300
-	matchOffset              = 400
-)
-
 // WSCInfo is a generic all-purpose code. Try to avoid using this unless the message can be safely ignored
 const WSCInfo = 0
 
@@ -43,14 +35,19 @@ const (
 
 // Match
 const (
-	WSCMatchID           B2Code = 400
-	WSCMatchIDExpected   B2Code = 401
-	WSCMatchIDBadFormat  B2Code = 402
-	WSCMatchInvalid      B2Code = 403
-	WSCMatchJoined       B2Code = 404
-	WSCMatchData         B2Code = 405
-	WSCMatchOpponentData B2Code = 406
-	WSCMatchMoveUpdate   B2Code = 407
-	WSCMatchForfeit      B2Code = 408
-	WSCMatchMessage      B2Code = 409
+	WSCMatchID                  B2Code = 400
+	WSCMatchIDExpected          B2Code = 401
+	WSCMatchIDBadFormat         B2Code = 402
+	WSCMatchInvalid             B2Code = 403
+	WSCMatchIDNotReceived       B2Code = 404
+	WSCMatchMultipleConnections B2Code = 405
+	WSCMatchFull                B2Code = 406
+	WSCMatchIllegalMove         B2Code = 407
+	WSCMatchJoined              B2Code = 408
+	WSCMatchData                B2Code = 409
+	WSCMatchOpponentData        B2Code = 410
+	WSCMatchMoveUpdate          B2Code = 411
+	WSCMatchForfeit             B2Code = 412
+	WSCMatchOpponentForfeit     B2Code = 413
+	WSCMatchMessage             B2Code = 414
 )

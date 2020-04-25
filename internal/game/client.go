@@ -21,6 +21,7 @@ type GClient struct {
 	server      *Server
 	PendingKill bool
 	killLock    sync.Mutex
+	IsInMatch   bool
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
@@ -48,13 +49,14 @@ func (client *GClient) pollSend() {
 	for {
 		message := client.connection.GetNextSendMessage()
 
+		err := client.connection.WriteMessage(message)
+
 		if client.isPendingKill() {
 			break
 		}
 
-		err := client.connection.WriteMessage(message)
 		if err != nil {
-			// client.server.Remove(client, protocol.WSCUnknownError, err.Error())
+			client.server.Remove(client, protocol.WSCUnknownError, err.Error())
 			break
 		}
 	}
@@ -75,11 +77,11 @@ func (client *GClient) SendMessage(message protocol.Message) {
 
 // Close closes a websocket connection immediately after sending the specified message
 func (client *GClient) Close(message protocol.Message) {
+	client.SendMessage(message)
+
 	client.killLock.Lock()
 	client.PendingKill = true
 	client.killLock.Unlock()
-
-	client.SendMessage(message)
 
 	time.Sleep(closeWaitPeriod)
 	client.connection.WS.Close()

@@ -9,7 +9,7 @@ import (
 )
 
 // BufferSize is the size of each message queue's buffer
-const BufferSize = 32
+const BufferSize = 256
 
 // readyCheckTime is how long to wait when a ready check is sent
 const readyCheckTime = time.Second * 5
@@ -36,11 +36,16 @@ func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, mat
 
 // Remove adds a client to the unregister queue, to be removed next cycle
 func (gs *Server) Remove(client *GClient, reason protocol.B2Code, message string) {
+	if client.IsInMatch {
+		if match, ok := gs.matches[client.MatchID]; ok {
+			match.State.Finished = true
+		}
+	}
+
 	gs.unregister <- UnregisterRequest{
-		matchID:  client.MatchID,
-		clientID: client.DBID,
-		Reason:   reason,
-		Message:  message,
+		Client:  client,
+		Reason:  reason,
+		Message: message,
 	}
 }
 
@@ -55,33 +60,41 @@ func (gs *Server) MainLoop() {
 			select {
 			case client := <-gs.register:
 				if match, ok := gs.matches[client.MatchID]; ok {
-					match.Client2 = client
-
-					client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
-
-					cardsToSend, drawsUntilValid := Generate()
-					initialisedCards := Initialise(cardsToSend, drawsUntilValid)
-
-					match.State.Cards = initialisedCards
-
-					if match.State.Cards.Player1Hand[0].Value() < match.State.Cards.Player1Hand[0].Value() {
-						match.State.Turn = Player1
+					if match.IsFull() {
+						gs.Remove(client, protocol.WSCMatchFull, "Attempted to join a match which already has both clients registered")
+					} else if match.Client1.DBID == client.DBID {
+						gs.Remove(client, protocol.WSCMatchMultipleConnections, "Attempted to join a match to which this client is already registered")
 					} else {
-						match.State.Turn = Player2
+						client.IsInMatch = true
+						match.Client2 = client
+
+						client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
+
+						cardsToSend, drawsUntilValid := Generate()
+						initialisedCards := Initialise(cardsToSend, drawsUntilValid)
+
+						match.State.Cards = initialisedCards
+
+						if match.State.Cards.Player1Hand[0].Value() < match.State.Cards.Player1Hand[0].Value() {
+							match.State.Turn = Player1
+						} else {
+							match.State.Turn = Player2
+						}
+
+						match.BroadCast(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, cardsToSend.Serialized()))
+						log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
 					}
-
-					match.BroadCast(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, cardsToSend.Serialized()))
-
 				} else {
+					client.IsInMatch = true
 					gs.matches[client.MatchID] = &Match{
-						MatchID: client.MatchID,
+						ID:      client.MatchID,
 						Client1: client,
 					}
 
 					client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
+					log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
 				}
 
-				log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
 				break
 			case clientid := <-gs.unregister:
 				toRemove = append(toRemove, clientid)
@@ -96,37 +109,58 @@ func (gs *Server) MainLoop() {
 			}
 		}
 
-		// // Remove any clients that are pending removal
-		// for index := len(toRemove) - 1; index >= 0; index-- {
-		// 	// Remove from the queue (map)
-		// 	removalIndex := toRemove[index].clientID
+		go func() {
+			for i := 0; i < len(toRemove); i++ {
+				if toRemove[i].Client.IsInMatch {
+					if match, ok := gs.matches[toRemove[i].Client.MatchID]; ok {
+						initiator := toRemove[i].Client
+						var initiatorReason protocol.B2Code
+						var initiatorMessage string
 
-		// 	if client, ok := queue.clients[removalIndex]; ok {
-		// 		deletedClientPID := client.PublicID
-		// 		go client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
-		// 		delete(queue.clients, removalIndex)
+						var other *GClient
+						var otherReason protocol.B2Code
+						var otherMessage string
 
-		// 		// Remove from the queue index (slice)
-		// 		for indexIterator >= 0 {
-		// 			if queue.index[index] == removalIndex {
-		// 				if len(queue.index) == 1 {
-		// 					queue.index = make([]uint64, 0)
-		// 				} else {
-		// 					queue.index = append(queue.index[:indexIterator], queue.index[indexIterator+1:]...)
-		// 				}
-		// 				break
-		// 			}
+						if match.Client1.DBID == toRemove[i].Client.DBID {
+							other = match.Client2
+						} else {
+							other = match.Client1
+						}
 
-		// 			indexIterator--
-		// 		}
+						if toRemove[i].Reason == protocol.WSCMatchForfeit {
+							initiatorReason = protocol.WSCMatchForfeit
+							initiatorMessage = "Post-forfeit quit"
 
-		// 		log.Printf("Client [%s] left the matchmaking queue. Total clients: %v", deletedClientPID, len(queue.clients))
-		// 	}
-		// }
+							otherReason = protocol.WSCMatchOpponentForfeit
+							otherMessage = "Opponent forfeited the match"
+
+						} else {
+							initiatorReason = toRemove[i].Reason
+							initiatorMessage = toRemove[i].Message
+
+							otherReason = toRemove[i].Reason
+							otherMessage = toRemove[i].Message
+						}
+
+						initiator.Close(protocol.NewMessage(protocol.WSMTText, initiatorReason, initiatorMessage))
+						other.Close(protocol.NewMessage(protocol.WSMTText, otherReason, otherMessage))
+
+						delete(gs.matches, match.ID)
+
+						log.Printf("Client's [%s][%s] left the game server - match [%d] ended", match.Client1.PublicID, match.Client2.PublicID, match.ID)
+					}
+				} else {
+					toRemove[i].Client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[i].Reason, toRemove[i].Message))
+					log.Printf("Client [%s] left the game server (was not in game)", toRemove[i].Client.PublicID)
+				}
+			}
+		}()
 
 		// Tick all matches
 		for _, match := range gs.matches {
-			match.Tick()
+			if !match.State.Finished {
+				match.Tick()
+			}
 		}
 
 		// Perform matchmaking
@@ -163,8 +197,8 @@ func (gs *Server) Init() {
 	gs.matches = make(map[uint64]*Match)
 	gs.register = make(chan *GClient, BufferSize)
 	gs.unregister = make(chan UnregisterRequest, BufferSize)
-	// gs.broadcast = make(chan protocol.Message, BufferSize)
-	// gs.commands = make(chan Command, BufferSize)
+	gs.broadcast = make(chan protocol.Message, BufferSize)
+	gs.commands = make(chan protocol.Command, BufferSize)
 
 	go gs.MainLoop()
 }

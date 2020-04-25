@@ -6,8 +6,7 @@ import (
 
 // UnregisterRequest is a wrapper for the information required to remove a client from the queue
 type UnregisterRequest struct {
-	matchID  uint64
-	clientID uint64
-	Reason   protocol.B2Code
-	Message  string
+	Client  *GClient
+	Reason  protocol.B2Code
+	Message string
 }

@@ -5,20 +5,23 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func waitForMessageAsync(wsconn *websocket.Conn) chan protocol.Message {
-	channel := make(chan protocol.Message, 1)
+func waitForMessageAsync(wsconn *websocket.Conn, messageCount uint64) chan protocol.Message {
+	channel := make(chan protocol.Message, messageCount)
 
 	go func() {
-		mt, payload, err := wsconn.ReadMessage()
-		if err != nil {
-			Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
-			return
+		for i := uint64(0); i < messageCount; i++ {
+			mt, payload, err := wsconn.ReadMessage()
+			if err != nil {
+				Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
+				return
+			}
+
+			messagePayload := protocol.NewPayloadFromBytes(payload)
+			packagedMessage := protocol.NewMessageFromPayload(protocol.Type(mt), messagePayload)
+
+			channel <- packagedMessage
 		}
 
-		messagePayload := protocol.NewPayloadFromBytes(payload)
-		packagedMessage := protocol.NewMessageFromPayload(protocol.Type(mt), messagePayload)
-
-		channel <- packagedMessage
 	}()
 
 	return channel
