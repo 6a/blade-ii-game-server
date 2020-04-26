@@ -1,6 +1,8 @@
 package protocol
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // Payload is a wrapper for the payload of a websocket message
 type Payload struct {

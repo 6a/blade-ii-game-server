@@ -2,9 +2,12 @@ package game
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+var validMoveStringRegex = regexp.MustCompile("^[^:]+:[^:]*$")
 
 // Move represents a client match data packet
 type Move struct {
@@ -20,13 +23,13 @@ func MoveFromString(stringMove string) (move Move, err error) {
 		Original: stringMove,
 	}
 
-	data := strings.Split(stringMove, payloadDelimiter)
-
-	if len(data) != 2 {
-		return move, errors.New("Could not parse incoming move")
+	if !validMoveStringRegex.MatchString(stringMove) {
+		return move, errors.New("Serialised move format invalid")
 	}
 
-	outInt, err := strconv.Atoi(data[1])
+	data := strings.Split(stringMove, payloadDelimiter)
+
+	outInt, err := strconv.Atoi(data[0])
 	if err != nil {
 		return move, errors.New("Could not parse the code for the incoming move (wrong type)")
 	}
@@ -36,7 +39,12 @@ func MoveFromString(stringMove string) (move Move, err error) {
 	}
 
 	move.Instruction = B2MatchInstruction(outInt)
-	move.Payload = data[1]
+
+	if len(data) == 2 {
+		move.Payload = data[1]
+	} else {
+		move.Payload = ""
+	}
 
 	return move, nil
 }

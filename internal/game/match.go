@@ -56,16 +56,16 @@ func (match *Match) SendMatchData(cards string) {
 	client2Buffer.WriteString(cards)
 
 	client1MessageString := makeMessageString(InstructionCards, client1Buffer.String())
-	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchInstruction, client1MessageString))
+	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, client1MessageString))
 
 	client2MessageString := makeMessageString(InstructionCards, client2Buffer.String())
-	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchInstruction, client2MessageString))
+	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, client2MessageString))
 }
 
 // SendPlayerData sends each player's (their own) name to the respective client
 func (match *Match) SendPlayerData() {
-	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchInstruction, makeMessageString(InstructionPlayerData, match.Client1.DisplayName)))
-	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchInstruction, makeMessageString(InstructionPlayerData, match.Client2.DisplayName)))
+	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionPlayerData, match.Client1.DisplayName)))
+	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionPlayerData, match.Client2.DisplayName)))
 }
 
 // SendOpponentData sends each player the opponents data
@@ -75,14 +75,14 @@ func (match *Match) SendOpponentData() {
 	client1Buffer.WriteString(clientDataDelimiter)
 	client1Buffer.WriteString(match.Client2.PublicID)
 
-	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchInstruction, makeMessageString(InstructionOpponentData, client1Buffer.String())))
+	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionOpponentData, client1Buffer.String())))
 
 	var client2Buffer bytes.Buffer
 	client2Buffer.WriteString(match.Client1.DisplayName)
 	client2Buffer.WriteString(clientDataDelimiter)
 	client2Buffer.WriteString(match.Client1.PublicID)
 
-	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchInstruction, makeMessageString(InstructionOpponentData, client2Buffer.String())))
+	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionOpponentData, client2Buffer.String())))
 }
 
 // SetMatchStart sets the phase + start time for the current match
@@ -157,7 +157,7 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 	for len(client.connection.ReceiveQueue) > 0 {
 		message := client.connection.GetNextReceiveMessage()
 		if message.Type == protocol.Type(protocol.WSMTText) {
-			if message.Payload.Code == protocol.WSCMatchInstruction {
+			if message.Payload.Code == protocol.WSCMatchMove {
 				move, err := MoveFromString(message.Payload.Message)
 				if err == nil && match.isValidMove(move, player) {
 					// Update game state

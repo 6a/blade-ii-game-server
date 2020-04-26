@@ -32,19 +32,26 @@ func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 		select {
 		case res := <-inChannel:
 			if !authReceived {
+				sendMessage(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthReceived, ""))
+
 				DBID, publicID, b2code, err = checkAuth(res.Payload)
 				if err != nil {
 					Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
 					return
 				}
 
+				sendMessage(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCAuthSuccess, ""))
 				authReceived = true
 			} else {
+				sendMessage(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchIDReceived, ""))
+
 				matchID, b2code, err := validateMatch(DBID, res.Payload)
 				if err != nil {
 					Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
 					return
 				}
+
+				sendMessage(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchIDConfirmed, ""))
 
 				// Grab the clients display name as well
 				displayname, err := database.GetDisplayName(DBID)

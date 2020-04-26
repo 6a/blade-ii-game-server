@@ -187,8 +187,8 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) (finished bool) {
 
 		clientPair.SendMatchConfirmedMessage(matchid)
 
-		queue.Remove(clientPair.C1, protocol.WSCInfo, "Match found - closing connection")
-		queue.Remove(clientPair.C2, protocol.WSCInfo, "Match found - closing connection")
+		queue.Remove(clientPair.C1, protocol.WSCNone, "Match found - closing connection")
+		queue.Remove(clientPair.C2, protocol.WSCNone, "Match found - closing connection")
 		return true
 	}
 

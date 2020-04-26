@@ -141,8 +141,10 @@ func (gs *Server) MainLoop() {
 						otherReason = protocol.WSCMatchForfeit
 						otherMessage = "Opponent forfeited the match"
 
-						match.State.Winner = other.DBID
-						match.SetMatchResult()
+						if match.State.Phase > WaitingForPlayers {
+							match.State.Winner = other.DBID
+							match.SetMatchResult()
+						}
 					} else {
 						initiatorReason = toRemove[i].Reason
 						initiatorMessage = toRemove[i].Message
