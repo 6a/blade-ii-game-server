@@ -8,8 +8,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// MessageBufferSize is the size of each clients message buffer (both directions)
-const MessageBufferSize = 32
+const (
+	// MessageBufferSize is the size of each clients message buffer (both directions)
+	MessageBufferSize = 32
+
+	// Maximum tduration to wait before a write is considered to have failed
+	maximumWriteWait = time.Second * 4
+
+	// Maximum duration to wait before a pong is considered to be MIA
+	pongWait = maximumWriteWait * 2
+
+	// Send a ping every (n) seconds
+	pingPeriod = (pongWait * 8) / 10
+)
 
 // Connection is a wrapper for a websocket connection
 type Connection struct {
@@ -18,11 +29,24 @@ type Connection struct {
 	Latency      uint16
 	ReceiveQueue chan protocol.Message
 	Out          chan protocol.Message
+	pingTimer    *time.Ticker
 }
 
 func (connection *Connection) init() {
 	connection.ReceiveQueue = make(chan protocol.Message, MessageBufferSize)
 	connection.Out = make(chan protocol.Message, MessageBufferSize)
+
+	// Set up pong handler
+	connection.WS.SetReadDeadline(time.Now().Add(pongWait))
+	connection.WS.SetPongHandler(connection.pongHandler)
+
+	// Ticker
+	connection.pingTimer = time.NewTicker(pingPeriod)
+}
+
+func (connection *Connection) pongHandler(pong string) error {
+	connection.WS.SetReadDeadline(time.Now().Add(pongWait))
+	return nil
 }
 
 // ReadMessage synchronously retreives messages from the websocket
@@ -56,7 +80,15 @@ func (connection *Connection) GetNextReceiveMessage() protocol.Message {
 
 // GetNextSendMessage gets the next message from the outbound message queue
 func (connection *Connection) GetNextSendMessage() protocol.Message {
-	return <-connection.Out
+	for {
+		select {
+		case message := <-connection.Out:
+			return message
+		case <-connection.pingTimer.C:
+			// Dont bother checking for errors as they will be picked up by the message pumps
+			_ = connection.WS.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(maximumWriteWait))
+		}
+	}
 }
 
 // Close closes the connection

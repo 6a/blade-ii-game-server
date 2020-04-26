@@ -48,8 +48,8 @@ func (c *Cards) Serialized() string {
 	return buffer.String()
 }
 
-// Generate generates a new set of cards for a match - has additional checks to ensure that the match is not unwinnable from the first move etc
-func Generate() (cards Cards, drawsUntilValid uint) {
+// GenerateCards generates a new set of cards for a match - has additional checks to ensure that the match is not unwinnable from the first move etc
+func GenerateCards() (cards Cards, drawsUntilValid uint) {
 
 	// This probably doenst need to be done every time so..
 	// TODO determine if this is better off being called just once
@@ -58,7 +58,7 @@ func Generate() (cards Cards, drawsUntilValid uint) {
 
 	// Add all the cards (ref: https://www.reddit.com/r/Falcom/comments/fxt5nq/can_i_buy_the_card_game_blade_anywhere/fmxo8qo/)
 	pool := []Card{
-		Bolt, Bolt,
+		ElliotsOrbalStaff, ElliotsOrbalStaff,
 		FiesTwinGunswords, FiesTwinGunswords, FiesTwinGunswords, FiesTwinGunswords, FiesTwinGunswords,
 		AlisasOrbalBow, AlisasOrbalBow, AlisasOrbalBow, AlisasOrbalBow, AlisasOrbalBow,
 		JusisSword, JusisSword, JusisSword, JusisSword, JusisSword,
@@ -93,8 +93,8 @@ func Generate() (cards Cards, drawsUntilValid uint) {
 	return cards, drawsUntilValid
 }
 
-// Initialise simulates the first moves of the game until a playable state is reached - dont call this on a deck before its validated
-func Initialise(inCards Cards, drawsUntilValid uint) (outCards Cards) {
+// InitialiseCards simulates the first moves of the game until a playable state is reached - dont call this on a deck before its validated
+func InitialiseCards(inCards Cards, drawsUntilValid uint) (outCards Cards) {
 
 	// Copy into out value
 	outCards = inCards.Copy()

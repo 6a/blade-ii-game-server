@@ -19,8 +19,10 @@ func validateMatch(clientID uint64, payload protocol.Payload) (matchID uint64, w
 	}
 
 	valid, err := database.ValidateMatch(clientID, matchID)
-	if err != nil || !valid {
+	if err != nil {
 		return matchID, protocol.WSCMatchInvalid, err
+	} else if !valid {
+		return matchID, protocol.WSCMatchInvalid, errors.New("Could not find a valid match with the specified details")
 	}
 
 	return matchID, wscode, err

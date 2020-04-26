@@ -120,7 +120,7 @@ func ValidateMatch(userID uint64, matchID uint64) (valid bool, err error) {
 		return false, err
 	}
 
-	return true, nil
+	return found, nil
 }
 
 // GetDisplayName returns the displayname for the specified user

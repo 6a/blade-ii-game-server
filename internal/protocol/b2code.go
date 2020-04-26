@@ -42,12 +42,9 @@ const (
 	WSCMatchIDNotReceived       B2Code = 404
 	WSCMatchMultipleConnections B2Code = 405
 	WSCMatchFull                B2Code = 406
-	WSCMatchIllegalMove         B2Code = 407
-	WSCMatchJoined              B2Code = 408
-	WSCMatchData                B2Code = 409
-	WSCMatchOpponentData        B2Code = 410
-	WSCMatchMoveUpdate          B2Code = 411
-	WSCMatchForfeit             B2Code = 412
-	WSCMatchOpponentForfeit     B2Code = 413
-	WSCMatchMessage             B2Code = 414
+	WSCMatchJoined              B2Code = 407
+	WSCMatchIllegalMove         B2Code = 408
+	WSCMatchRelayMessage        B2Code = 409
+	WSCMatchInstruction         B2Code = 410
+	WSCMatchForfeit             B2Code = 411
 )

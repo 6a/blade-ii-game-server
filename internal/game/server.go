@@ -38,7 +38,9 @@ func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, dis
 func (gs *Server) Remove(client *GClient, reason protocol.B2Code, message string) {
 	if client.IsInMatch {
 		if match, ok := gs.matches[client.MatchID]; ok {
-			match.State.Finished = true
+			if match.State.Phase == Play {
+				match.State.Phase = Finished
+			}
 		}
 	}
 
@@ -59,8 +61,8 @@ func (gs *Server) MainLoop() {
 		for len(gs.register)+len(gs.unregister)+len(gs.broadcast) > 0 {
 			select {
 			case client := <-gs.register:
-				if match, ok := gs.matches[client.MatchID]; ok {
-					if match.IsFull() {
+				if match, ok := gs.matches[client.MatchID]; ok && match.Client1 != nil {
+					if match.State.Phase >= Play {
 						gs.Remove(client, protocol.WSCMatchFull, "Attempted to join a match which already has both clients registered")
 					} else if match.Client1.DBID == client.DBID {
 						gs.Remove(client, protocol.WSCMatchMultipleConnections, "Attempted to join a match to which this client is already registered")
@@ -70,10 +72,11 @@ func (gs *Server) MainLoop() {
 
 						client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
 
-						cardsToSend, drawsUntilValid := Generate()
-						initialisedCards := Initialise(cardsToSend, drawsUntilValid)
+						cardsToSend, drawsUntilValid := GenerateCards()
+						initialisedCards := InitialiseCards(cardsToSend, drawsUntilValid)
 
 						match.State.Cards = initialisedCards
+						match.State.Phase = Play
 
 						if match.State.Cards.Player1Hand[0].Value() < match.State.Cards.Player1Hand[0].Value() {
 							match.State.Turn = Player1
@@ -81,7 +84,9 @@ func (gs *Server) MainLoop() {
 							match.State.Turn = Player2
 						}
 
-						match.BroadCast(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, cardsToSend.Serialized()))
+						match.SendMatchData(cardsToSend.Serialized())
+						match.SendPlayerData()
+						match.SendOpponentData()
 						log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
 					}
 				} else {
@@ -109,75 +114,71 @@ func (gs *Server) MainLoop() {
 			}
 		}
 
-		go func() {
-			for i := 0; i < len(toRemove); i++ {
-				if toRemove[i].Client.IsInMatch {
-					if match, ok := gs.matches[toRemove[i].Client.MatchID]; ok {
-						initiator := toRemove[i].Client
-						var initiatorReason protocol.B2Code
-						var initiatorMessage string
+		for i := 0; i < len(toRemove); i++ {
+			if toRemove[i].Client.IsInMatch {
+				if match, ok := gs.matches[toRemove[i].Client.MatchID]; ok {
+					initiator := toRemove[i].Client
+					var initiatorReason protocol.B2Code
+					var initiatorMessage string
 
-						var other *GClient
-						var otherReason protocol.B2Code
-						var otherMessage string
+					var other *GClient
+					var otherReason protocol.B2Code
+					var otherMessage string
 
-						if match.Client1.DBID == toRemove[i].Client.DBID {
-							other = match.Client2
-						} else {
-							other = match.Client1
+					if match.Client1.DBID == toRemove[i].Client.DBID {
+						other = match.Client2
+					} else {
+						other = match.Client1
+					}
+
+					if toRemove[i].Reason == protocol.WSCMatchForfeit {
+						initiatorReason = protocol.WSCMatchForfeit
+						initiatorMessage = "Post-forfeit quit"
+
+						otherReason = protocol.WSCMatchForfeit
+						otherMessage = "Opponent forfeited the match"
+
+					} else {
+						initiatorReason = toRemove[i].Reason
+						initiatorMessage = toRemove[i].Message
+
+						otherReason = toRemove[i].Reason
+						otherMessage = toRemove[i].Message
+					}
+
+					initiator.Close(protocol.NewMessage(protocol.WSMTText, initiatorReason, initiatorMessage))
+
+					if match.State.Phase != WaitingForPlayers {
+						if other != nil {
+							other.Close(protocol.NewMessage(protocol.WSMTText, otherReason, otherMessage))
 						}
-
-						if toRemove[i].Reason == protocol.WSCMatchForfeit {
-							initiatorReason = protocol.WSCMatchForfeit
-							initiatorMessage = "Post-forfeit quit"
-
-							otherReason = protocol.WSCMatchOpponentForfeit
-							otherMessage = "Opponent forfeited the match"
-
-						} else {
-							initiatorReason = toRemove[i].Reason
-							initiatorMessage = toRemove[i].Message
-
-							otherReason = toRemove[i].Reason
-							otherMessage = toRemove[i].Message
-						}
-
-						initiator.Close(protocol.NewMessage(protocol.WSMTText, initiatorReason, initiatorMessage))
-						other.Close(protocol.NewMessage(protocol.WSMTText, otherReason, otherMessage))
 
 						delete(gs.matches, match.ID)
-
 						log.Printf("Client's [%s][%s] left the game server - match [%d] ended", match.Client1.PublicID, match.Client2.PublicID, match.ID)
-					}
-				} else {
-					toRemove[i].Client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[i].Reason, toRemove[i].Message))
-					log.Printf("Client [%s] left the game server (was not in game)", toRemove[i].Client.PublicID)
-				}
-			}
-		}()
+					} else {
+						if match.Client1.DBID == toRemove[i].Client.DBID {
+							match.Client1 = nil
+						} else {
+							match.Client2 = nil
+						}
 
-		// Tick all matches
-		for _, match := range gs.matches {
-			if !match.State.Finished {
-				match.Tick()
+						toRemove[i].Client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[i].Reason, toRemove[i].Message))
+
+						log.Printf("Client [%s] left the game server - match [%d] still waiting for clients", initiator.PublicID, match.ID)
+					}
+				}
+			} else {
+				toRemove[i].Client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[i].Reason, toRemove[i].Message))
+				log.Printf("Client [%s] left the game server (was not in game)", toRemove[i].Client.PublicID)
 			}
 		}
 
-		// Perform matchmaking
-		// queue.matchedPairs = append(queue.matchedPairs, queue.matchMake()...)
-		// for index := len(queue.matchedPairs) - 1; index >= 0; index-- {
-		// 	if !queue.matchedPairs[index].IsReadyChecking {
-		// 		queue.matchedPairs[index].SendMatchStartMessage()
-		// 	}
-
-		// 	if queue.pollReadyCheck(queue.matchedPairs[index]) {
-		// 		if len(queue.matchedPairs) == 1 {
-		// 			queue.matchedPairs = make([]ClientPair, 0)
-		// 		} else {
-		// 			queue.matchedPairs = queue.matchedPairs[:len(queue.matchedPairs)-1]
-		// 		}
-		// 	}
-		// }
+		// Tick all matches
+		for _, match := range gs.matches {
+			if match.State.Phase > WaitingForPlayers {
+				match.Tick()
+			}
+		}
 
 		// Wait til next iteration if the time taken is less than the designated poll time
 		elapsed := time.Now().Sub(start)

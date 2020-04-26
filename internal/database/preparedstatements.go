@@ -7,12 +7,14 @@ import (
 
 // PreparedStatements is a light wrapper for all the prepared statements used in this package
 type PreparedStatements struct {
-	GetUser         string
-	GetAuthExpiry   string
-	GetMMR          string
-	CreateMatch     string
-	CheckMatchValid string
-	GetDisplayName  string
+	GetUser           string
+	GetAuthExpiry     string
+	GetMMR            string
+	CreateMatch       string
+	CheckMatchValid   string
+	GetDisplayName    string
+	SetMatchState     string
+	RecordMatchResult string
 }
 
 // Construct constructs all the prepared statements for this PreparedStatements object
@@ -21,8 +23,10 @@ func (p *PreparedStatements) Construct(envvars *EnvironmentVariables) {
 	p.GetAuthExpiry = fmt.Sprintf("SELECT `auth_expiry` FROM `%v`.`%v` WHERE `id` = ? AND `auth` = ?;", envvars.Name, envvars.TableTokens)
 	p.GetMMR = fmt.Sprintf("SELECT `mmr` FROM `%v`.`%v` WHERE `id` = ?;", envvars.Name, envvars.TableProfiles)
 	p.CreateMatch = fmt.Sprintf("INSERT INTO `%v`.`%v` (`player1`, `player2`) VALUES (?, ?);", envvars.Name, envvars.TableMatches)
-	p.CheckMatchValid = fmt.Sprintf("SELECT EXISTS (SELECT * FROM `%v`.`%v` WHERE `id` = ? AND (`player1` = ? OR `player2` = ?));", envvars.Name, envvars.TableMatches)
+	p.CheckMatchValid = fmt.Sprintf("SELECT EXISTS (SELECT * FROM `%v`.`%v` WHERE `id` = ? AND `state` = 0 AND (`player1` = ? OR `player2` = ?));", envvars.Name, envvars.TableMatches)
 	p.GetDisplayName = fmt.Sprintf("SELECT `handle` FROM `%v`.`%v` WHERE `id` = ?;", envvars.Name, envvars.TableUsers)
+	p.SetMatchState = fmt.Sprintf("UPDATE `%v`.`%v` SET `state` = ? WHERE `id` = ?;", envvars.Name, envvars.TableMatches)
+	p.RecordMatchResult = fmt.Sprintf("UPDATE `%v`.`%v` SET `state` = 2 WHERE `id` = ?;", envvars.Name, envvars.TableMatches)
 
 	log.Println("Prepared statements constructed successfully")
 }
