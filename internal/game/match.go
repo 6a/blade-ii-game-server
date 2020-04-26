@@ -25,10 +25,10 @@ type Match struct {
 // Tick reads any incoming messages and passes outgoing messages to the queue
 func (match *Match) Tick() {
 	// Client 1
-	match.tickClient(match.Client1, match.Client2)
+	match.tickClient(match.Client1, match.Client2, Player1)
 
 	// Client 2
-	match.tickClient(match.Client2, match.Client1)
+	match.tickClient(match.Client2, match.Client1, Player2)
 }
 
 // IsFull returns true when the match is occupied by two players
@@ -133,7 +133,11 @@ func (match *Match) SetMatchResult() {
 	}()
 }
 
-func isValidMove(payloadMessage string) bool {
+func (match *Match) isValidMove(move Move, player Player) bool {
+	// Early exit if the player tried to make a move during the other players turn
+	// if match.State.Turn != player && match.State.Turn != PlayerUndecided {
+	// 	return false
+	// }
 
 	return true
 }
@@ -149,27 +153,25 @@ func makeMessageString(instruction B2MatchInstruction, data string) string {
 }
 
 // tickClient performs the tick actions for the specified client
-func (match *Match) tickClient(client *GClient, other *GClient) {
+func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 	for len(client.connection.ReceiveQueue) > 0 {
 		message := client.connection.GetNextReceiveMessage()
 		if message.Type == protocol.Type(protocol.WSMTText) {
 			if message.Payload.Code == protocol.WSCMatchInstruction {
-				if isValidMove(message.Payload.Message) {
+				move, err := MoveFromString(message.Payload.Message)
+				if err == nil && match.isValidMove(move, player) {
 					// Update game state
+					match.updateGameState(player, move)
 
 					// Forward to other client
 					other.SendMessage(message)
 				} else {
 					// Remove the offending client (this will also end the game)
 					match.Server.Remove(client, protocol.WSCMatchIllegalMove, "")
-
-					// Record the result in the database
-
 				}
 			} else if message.Type == protocol.Type(protocol.WSCMatchForfeit) {
+				// Remove the forfeiting client (this will also end the game)
 				match.Server.Remove(client, protocol.WSCMatchForfeit, "")
-
-				// Record the result in the database
 			} else if message.Type == protocol.Type(protocol.WSCMatchRelayMessage) {
 				other.SendMessage(message)
 			}
@@ -177,4 +179,8 @@ func (match *Match) tickClient(client *GClient, other *GClient) {
 			// Handle non-text messages?
 		}
 	}
+}
+
+func (match *Match) updateGameState(player Player, move Move) {
+
 }
