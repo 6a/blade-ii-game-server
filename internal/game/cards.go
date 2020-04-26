@@ -54,7 +54,6 @@ func GenerateCards() (cards Cards, drawsUntilValid uint) {
 	// This probably doenst need to be done every time so..
 	// TODO determine if this is better off being called just once
 	rand.Seed(time.Now().UTC().UnixNano())
-	rand.Seed(time.Now().UTC().UnixNano())
 
 	// Add all the cards (ref: https://www.reddit.com/r/Falcom/comments/fxt5nq/can_i_buy_the_card_game_blade_anywhere/fmxo8qo/)
 	pool := []Card{
@@ -88,6 +87,8 @@ func GenerateCards() (cards Cards, drawsUntilValid uint) {
 
 		// Check the cards validity - a result of true will cause the loop to exit
 		success, drawsUntilValid = validateCards(&cards)
+
+		break
 	}
 
 	return cards, drawsUntilValid
@@ -182,11 +183,13 @@ func validateCards(cards *Cards) (valid bool, drawsUntilValid uint) {
 			var opponentCard Card
 			var scoreToCheck uint8
 
+			// Copy the cards that we will be examining. Note the explicit copy, as we modify the array later which would
+			// otherwise effect the original set of cards
 			if player1Score < player2Score {
-				cardSet = cards.Player1Deck[postInitialisationDeckSize:]
+				copy(cardSet, cards.Player1Deck[postInitialisationDeckSize:])
 				scoreToCheck = player1Score
 			} else {
-				cardSet = cards.Player2Deck[postInitialisationDeckSize:]
+				copy(cardSet, cards.Player2Deck[postInitialisationDeckSize:])
 			}
 
 			// Reverse the hand as we would in fact be drawing from the top of the deck to the start of the hand
@@ -195,6 +198,7 @@ func validateCards(cards *Cards) (valid bool, drawsUntilValid uint) {
 			// If, after the first legal draw, the player that goes first has a valid move to play, the cards are valid
 			if validFirstMoveAvailable(cardSet, opponentCard, scoreToCheck) {
 				return true, (uint(i) + 1)
+
 			}
 
 			// If we get to this point, the first draw was legal, but the player that goes first was immediately put into a position where they
