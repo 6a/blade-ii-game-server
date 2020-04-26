@@ -145,6 +145,17 @@ func (gs *Server) MainLoop() {
 							match.State.Winner = other.DBID
 							match.SetMatchResult()
 						}
+					} else if toRemove[i].Reason == protocol.WSCMatchIllegalMove {
+						initiatorReason = protocol.WSCMatchIllegalMove
+						initiatorMessage = "Post-illegal move forfeit quit"
+
+						otherReason = protocol.WSCMatchForfeit
+						otherMessage = "Opponent forfeited the match"
+
+						if match.State.Phase > WaitingForPlayers {
+							match.State.Winner = other.DBID
+							match.SetMatchResult()
+						}
 					} else {
 						initiatorReason = toRemove[i].Reason
 						initiatorMessage = toRemove[i].Message

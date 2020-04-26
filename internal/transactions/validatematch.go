@@ -18,6 +18,9 @@ func validateMatch(clientID uint64, payload protocol.Payload) (matchID uint64, w
 		return matchID, protocol.WSCMatchIDBadFormat, errors.New("Match ID format invalid or missing")
 	}
 
+	// Expiry check here
+	// TODO impl expiry check
+
 	valid, err := database.ValidateMatch(clientID, matchID)
 	if err != nil {
 		return matchID, protocol.WSCMatchInvalid, err

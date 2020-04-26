@@ -1,6 +1,7 @@
 package transactions
 
 import (
+	"log"
 	"time"
 
 	"github.com/6a/blade-ii-game-server/internal/game"
@@ -53,11 +54,11 @@ func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 
 				sendMessage(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchIDConfirmed, ""))
 
-				// Grab the clients display name as well
+				// Grab the clients display name as well - if this errors, log to console and use a placeholder
 				displayname, err := database.GetDisplayName(DBID)
 				if err != nil {
-					Discard(wsconn, protocol.NewMessage(protocol.WSMTText, b2code, err.Error()))
-					return
+					log.Printf("Error getting displayname for user [ %d ]: %s", DBID, err.Error())
+					displayname = "<unknown>"
 				}
 
 				gs.AddClient(wsconn, DBID, publicID, displayname, matchID)
