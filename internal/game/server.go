@@ -76,7 +76,9 @@ func (gs *Server) MainLoop() {
 						initialisedCards := InitialiseCards(cardsToSend, drawsUntilValid)
 
 						match.State.Cards = initialisedCards
-						match.State.Phase = Play
+
+						// Update the match phase
+						match.SetPhase(Play)
 
 						if match.State.Cards.Player1Hand[0].Value() < match.State.Cards.Player1Hand[0].Value() {
 							match.State.Turn = Player1
@@ -117,6 +119,9 @@ func (gs *Server) MainLoop() {
 		for i := 0; i < len(toRemove); i++ {
 			if toRemove[i].Client.IsInMatch {
 				if match, ok := gs.matches[toRemove[i].Client.MatchID]; ok {
+					// Update the match phase
+					match.SetPhase(Finished)
+
 					initiator := toRemove[i].Client
 					var initiatorReason protocol.B2Code
 					var initiatorMessage string

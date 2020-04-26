@@ -13,7 +13,7 @@ const (
 // Phase is a typedef for the different states that a match can be in
 type Phase uint8
 
-// State enums
+// Match phase enums
 const (
 	WaitingForPlayers Phase = 0
 	Play              Phase = 1

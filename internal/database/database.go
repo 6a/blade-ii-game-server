@@ -140,6 +140,23 @@ func GetDisplayName(userID uint64) (displayname string, err error) {
 	return displayname, nil
 }
 
+// SetMatchPhase updates the phase column for the specified match with the specified value
+func SetMatchPhase(matchID uint64, newPhase uint8) (err error) {
+	statement, err := db.Prepare(pstatements.SetMatchPhase)
+	if err != nil {
+		return errors.New("Internal server error: Failed to prepare statement")
+	}
+
+	defer statement.Close()
+
+	_, err = statement.Exec(newPhase, matchID)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
 func getUser(pid string) (id uint64, banned bool, err error) {
 	statement, err := db.Prepare(pstatements.GetUser)
 	if err != nil {

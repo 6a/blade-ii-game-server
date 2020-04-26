@@ -2,8 +2,10 @@ package game
 
 import (
 	"bytes"
+	"log"
 	"strconv"
 
+	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
 
@@ -22,33 +24,10 @@ type Match struct {
 // Tick reads any incoming messages and passes outgoing messages to the queue
 func (match *Match) Tick() {
 	// Client 1
-	for len(match.Client1.connection.ReceiveQueue) > 0 {
-		message := match.Client1.connection.GetNextReceiveMessage()
-		if message.Type == protocol.Type(protocol.WSMTText) {
-			if message.Payload.Code == protocol.WSCMatchInstruction {
-				if isValidMove(message.Payload.Message) {
-					match.Client2.SendMessage(protocol.NewMessageFromPayload(protocol.WSMTText, message.Payload))
-				} else {
-					match.Server.Remove(match.Client1, protocol.WSCMatchIllegalMove, "")
+	match.tickClient(match.Client1, match.Client2)
 
-					// Record the result in the database
-				}
-			} else if message.Type == protocol.Type(protocol.WSCMatchForfeit) {
-				match.Server.Remove(match.Client1, protocol.WSCMatchForfeit, "")
-
-				// Record the result in the database
-			} else if message.Type == protocol.Type(protocol.WSCMatchRelayMessage) {
-				// Relay text message
-			}
-		} else {
-			// Handle non-text messages?
-		}
-	}
-}
-
-// TickClient performs the tick actions for the specified client
-func (match *Match) TickClient(client *GClient) {
-
+	// Client 2
+	match.tickClient(match.Client2, match.Client1)
 }
 
 // IsFull returns true when the match is occupied by two players
@@ -105,6 +84,24 @@ func (match *Match) SendOpponentData() {
 	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchInstruction, makeMessageString(InstructionOpponentData, client2Buffer.String())))
 }
 
+// SetPhase updates the phase for the current match in the database
+// Fails silently but logs errors
+//
+// Database update is performed in a goroutine
+func (match *Match) SetPhase(newPhase Phase) {
+	// Update the local match state
+	match.State.Phase = newPhase
+
+	go func() {
+		// Update the match phase in the database
+		err := database.SetMatchPhase(match.ID, uint8(newPhase))
+		if err != nil {
+			// Output to log but otherwise continue
+			log.Printf("Failed to update match phase: %s", err.Error())
+		}
+	}()
+}
+
 func isValidMove(payloadMessage string) bool {
 
 	return true
@@ -118,4 +115,34 @@ func makeMessageString(instruction B2MatchInstruction, data string) string {
 	buffer.WriteString(data)
 
 	return buffer.String()
+}
+
+// tickClient performs the tick actions for the specified client
+func (match *Match) tickClient(client *GClient, other *GClient) {
+	for len(client.connection.ReceiveQueue) > 0 {
+		message := client.connection.GetNextReceiveMessage()
+		if message.Type == protocol.Type(protocol.WSMTText) {
+			if message.Payload.Code == protocol.WSCMatchInstruction {
+				if isValidMove(message.Payload.Message) {
+					// Update game state
+
+					// Forward to other client
+					other.SendMessage(message)
+				} else {
+					// Remove the offending client (this will also end the game)
+					match.Server.Remove(client, protocol.WSCMatchIllegalMove, "")
+
+					// Record the result in the database
+				}
+			} else if message.Type == protocol.Type(protocol.WSCMatchForfeit) {
+				match.Server.Remove(client, protocol.WSCMatchForfeit, "")
+
+				// Record the result in the database
+			} else if message.Type == protocol.Type(protocol.WSCMatchRelayMessage) {
+				other.SendMessage(message)
+			}
+		} else {
+			// Handle non-text messages?
+		}
+	}
 }
