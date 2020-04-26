@@ -39,6 +39,7 @@ func (gs *Server) Remove(client *GClient, reason protocol.B2Code, message string
 	if client.IsInMatch {
 		if match, ok := gs.matches[client.MatchID]; ok {
 			if match.State.Phase == Play {
+				// Update the match phase
 				match.State.Phase = Finished
 			}
 		}
@@ -78,7 +79,7 @@ func (gs *Server) MainLoop() {
 						match.State.Cards = initialisedCards
 
 						// Update the match phase
-						match.SetPhase(Play)
+						match.SetMatchStart()
 
 						if match.State.Cards.Player1Hand[0].Value() < match.State.Cards.Player1Hand[0].Value() {
 							match.State.Turn = Player1
@@ -119,9 +120,6 @@ func (gs *Server) MainLoop() {
 		for i := 0; i < len(toRemove); i++ {
 			if toRemove[i].Client.IsInMatch {
 				if match, ok := gs.matches[toRemove[i].Client.MatchID]; ok {
-					// Update the match phase
-					match.SetPhase(Finished)
-
 					initiator := toRemove[i].Client
 					var initiatorReason protocol.B2Code
 					var initiatorMessage string
@@ -136,13 +134,15 @@ func (gs *Server) MainLoop() {
 						other = match.Client1
 					}
 
-					if toRemove[i].Reason == protocol.WSCMatchForfeit {
+					if toRemove[i].Reason == protocol.WSCMatchForfeit || toRemove[i].Reason == protocol.WSCUnknownConnectionError {
 						initiatorReason = protocol.WSCMatchForfeit
 						initiatorMessage = "Post-forfeit quit"
 
 						otherReason = protocol.WSCMatchForfeit
 						otherMessage = "Opponent forfeited the match"
 
+						match.State.Winner = other.DBID
+						match.SetMatchResult()
 					} else {
 						initiatorReason = toRemove[i].Reason
 						initiatorMessage = toRemove[i].Message
@@ -154,9 +154,7 @@ func (gs *Server) MainLoop() {
 					initiator.Close(protocol.NewMessage(protocol.WSMTText, initiatorReason, initiatorMessage))
 
 					if match.State.Phase != WaitingForPlayers {
-						if other != nil {
-							other.Close(protocol.NewMessage(protocol.WSMTText, otherReason, otherMessage))
-						}
+						other.Close(protocol.NewMessage(protocol.WSMTText, otherReason, otherMessage))
 
 						delete(gs.matches, match.ID)
 						log.Printf("Client's [%s][%s] left the game server - match [%d] ended", match.Client1.PublicID, match.Client2.PublicID, match.ID)

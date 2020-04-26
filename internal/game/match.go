@@ -11,6 +11,7 @@ import (
 
 const clientDataDelimiter string = "."
 const payloadDelimiter string = ":"
+const debugGameID uint64 = 20
 
 // Match is a wrapper for a matche's data and client connections etc
 type Match struct {
@@ -84,20 +85,50 @@ func (match *Match) SendOpponentData() {
 	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchInstruction, makeMessageString(InstructionOpponentData, client2Buffer.String())))
 }
 
-// SetPhase updates the phase for the current match in the database
+// SetMatchStart sets the phase + start time for the current match
 // Fails silently but logs errors
 //
 // Database update is performed in a goroutine
-func (match *Match) SetPhase(newPhase Phase) {
+func (match *Match) SetMatchStart() {
 	// Update the local match state
-	match.State.Phase = newPhase
+	match.State.Phase = Play
+
+	// Early exit if we are currently in the debug match (dont write to the db)
+	if match.ID == debugGameID {
+		return
+	}
 
 	go func() {
 		// Update the match phase in the database
-		err := database.SetMatchPhase(match.ID, uint8(newPhase))
+		err := database.SetMatchStart(match.ID)
 		if err != nil {
 			// Output to log but otherwise continue
 			log.Printf("Failed to update match phase: %s", err.Error())
+		}
+	}()
+}
+
+// SetMatchResult sends the match result to the database
+// Fails silently but logs errors
+//
+// Performed in a goroutine
+func (match *Match) SetMatchResult() {
+	// Early exit if the winner is not yet decided
+	if match.State.Winner == 0 {
+		return
+	}
+
+	// Early exit if we are currently in the debug match (dont write to the db)
+	if match.ID == debugGameID {
+		return
+	}
+
+	go func() {
+		// Update the match phase in the database
+		err := database.SetMatchResult(match.ID, match.State.Winner)
+		if err != nil {
+			// Output to log but otherwise continue
+			log.Printf("Failed to update match result: %s", err.Error())
 		}
 	}()
 }
@@ -133,6 +164,7 @@ func (match *Match) tickClient(client *GClient, other *GClient) {
 					match.Server.Remove(client, protocol.WSCMatchIllegalMove, "")
 
 					// Record the result in the database
+
 				}
 			} else if message.Type == protocol.Type(protocol.WSCMatchForfeit) {
 				match.Server.Remove(client, protocol.WSCMatchForfeit, "")

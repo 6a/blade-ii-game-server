@@ -12,7 +12,7 @@ func waitForMessageAsync(wsconn *websocket.Conn, messageCount uint64) chan proto
 		for i := uint64(0); i < messageCount; i++ {
 			mt, payload, err := wsconn.ReadMessage()
 			if err != nil {
-				Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
+				Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownConnectionError, err.Error()))
 				return
 			}
 

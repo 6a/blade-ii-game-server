@@ -39,7 +39,7 @@ func (client *GClient) pollReceive() {
 		}
 
 		if err != nil {
-			client.server.Remove(client, protocol.WSCUnknownError, err.Error())
+			client.server.Remove(client, protocol.WSCUnknownConnectionError, err.Error())
 			break
 		}
 	}
@@ -56,7 +56,7 @@ func (client *GClient) pollSend() {
 		}
 
 		if err != nil {
-			client.server.Remove(client, protocol.WSCUnknownError, err.Error())
+			client.server.Remove(client, protocol.WSCUnknownConnectionError, err.Error())
 			break
 		}
 	}

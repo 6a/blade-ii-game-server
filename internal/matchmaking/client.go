@@ -41,7 +41,7 @@ func (client *MMClient) pollReceive() {
 		}
 
 		if err != nil {
-			client.queue.Remove(client, protocol.WSCUnknownError, err.Error())
+			client.queue.Remove(client, protocol.WSCUnknownConnectionError, err.Error())
 			break
 		}
 	}
@@ -57,7 +57,7 @@ func (client *MMClient) pollSend() {
 
 		err := client.connection.WriteMessage(message)
 		if err != nil {
-			client.queue.Remove(client, protocol.WSCUnknownError, err.Error())
+			client.queue.Remove(client, protocol.WSCUnknownConnectionError, err.Error())
 			break
 		}
 	}

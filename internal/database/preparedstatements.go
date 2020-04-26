@@ -7,14 +7,14 @@ import (
 
 // PreparedStatements is a light wrapper for all the prepared statements used in this package
 type PreparedStatements struct {
-	GetUser           string
-	GetAuthExpiry     string
-	GetMMR            string
-	CreateMatch       string
-	CheckMatchValid   string
-	GetDisplayName    string
-	SetMatchPhase     string
-	RecordMatchResult string
+	GetUser         string
+	GetAuthExpiry   string
+	GetMMR          string
+	CreateMatch     string
+	CheckMatchValid string
+	GetDisplayName  string
+	SetMatchStart   string
+	SetMatchResult  string
 }
 
 // Construct constructs all the prepared statements for this PreparedStatements object
@@ -25,8 +25,8 @@ func (p *PreparedStatements) Construct(envvars *EnvironmentVariables) {
 	p.CreateMatch = fmt.Sprintf("INSERT INTO `%v`.`%v` (`player1`, `player2`) VALUES (?, ?);", envvars.Name, envvars.TableMatches)
 	p.CheckMatchValid = fmt.Sprintf("SELECT EXISTS (SELECT * FROM `%v`.`%v` WHERE `id` = ? AND `phase` = 0 AND (`player1` = ? OR `player2` = ?));", envvars.Name, envvars.TableMatches)
 	p.GetDisplayName = fmt.Sprintf("SELECT `handle` FROM `%v`.`%v` WHERE `id` = ?;", envvars.Name, envvars.TableUsers)
-	p.SetMatchPhase = fmt.Sprintf("UPDATE `%v`.`%v` SET `phase` = ? WHERE `id` = ?;", envvars.Name, envvars.TableMatches)
-	p.RecordMatchResult = fmt.Sprintf("UPDATE `%v`.`%v` SET `state` = 2 WHERE `id` = ?;", envvars.Name, envvars.TableMatches)
+	p.SetMatchStart = fmt.Sprintf("UPDATE `%v`.`%v` SET `phase` = 1, `start` = NOW() WHERE `id` = ?;", envvars.Name, envvars.TableMatches)
+	p.SetMatchResult = fmt.Sprintf("UPDATE `%v`.`%v` SET `phase` = ?, `winner` = ?, `end` = NOW() WHERE `id` = ?;", envvars.Name, envvars.TableMatches)
 
 	log.Println("Prepared statements constructed successfully")
 }

@@ -8,8 +8,8 @@ const WSCInfo = 0
 
 // Connection
 const (
-	WSCConnectionTimeOut B2Code = 100
-	WSCUnknownError      B2Code = 101
+	WSCConnectionTimeOut      B2Code = 100
+	WSCUnknownConnectionError B2Code = 101
 )
 
 // Auth

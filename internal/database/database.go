@@ -140,16 +140,33 @@ func GetDisplayName(userID uint64) (displayname string, err error) {
 	return displayname, nil
 }
 
-// SetMatchPhase updates the phase column for the specified match with the specified value
-func SetMatchPhase(matchID uint64, newPhase uint8) (err error) {
-	statement, err := db.Prepare(pstatements.SetMatchPhase)
+// SetMatchStart updates the phase + start time column for the specified match
+func SetMatchStart(matchID uint64) (err error) {
+	statement, err := db.Prepare(pstatements.SetMatchStart)
 	if err != nil {
 		return errors.New("Internal server error: Failed to prepare statement")
 	}
 
 	defer statement.Close()
 
-	_, err = statement.Exec(newPhase, matchID)
+	_, err = statement.Exec(matchID)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// SetMatchResult updates the entire match specified with the winner, end time, and sets phase to 2 (finished)
+func SetMatchResult(matchID uint64, winnerID uint64) (err error) {
+	statement, err := db.Prepare(pstatements.SetMatchResult)
+	if err != nil {
+		return errors.New("Internal server error: Failed to prepare statement")
+	}
+
+	defer statement.Close()
+
+	_, err = statement.Exec(2, winnerID, matchID)
 	if err != nil {
 		return err
 	}

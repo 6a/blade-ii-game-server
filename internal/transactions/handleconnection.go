@@ -87,13 +87,13 @@ func HandleMMConnection(wsconn *websocket.Conn, mm *matchmaking.Server) {
 
 		mmr, err := database.GetMMR(id)
 		if err != nil {
-			Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, err.Error()))
+			Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownConnectionError, err.Error()))
 			return
 		}
 
 		mm.AddClient(wsconn, id, pid, mmr)
 	case <-time.After(connectionTimeOut):
-		Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownError, "Auth message not received"))
+		Discard(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCUnknownConnectionError, "Auth message not received"))
 		return
 	}
 }
