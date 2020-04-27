@@ -65,32 +65,41 @@ func (gs *Server) MainLoop() {
 				if match, ok := gs.matches[client.MatchID]; ok && match.Client1 != nil {
 					if match.State.Phase >= Play {
 						gs.Remove(client, protocol.WSCMatchFull, "Attempted to join a match which already has both clients registered")
-					} else if match.Client1.DBID == client.DBID {
-						gs.Remove(client, protocol.WSCMatchMultipleConnections, "Attempted to join a match to which this client is already registered")
 					} else {
-						client.IsInMatch = true
-						match.Client2 = client
+						if match.Client1.DBID == client.DBID {
+							client.IsInMatch = true
+							gs.matches[client.MatchID] = &Match{
+								ID:      client.MatchID,
+								Client1: client,
+							}
 
-						client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
-
-						cardsToSend, drawsUntilValid := GenerateCards()
-						initialisedCards := InitialiseCards(cardsToSend, drawsUntilValid)
-
-						match.State.Cards = initialisedCards
-
-						// Update the match phase
-						match.SetMatchStart()
-
-						if match.State.Cards.Player1Hand[0].Value() < match.State.Cards.Player1Hand[0].Value() {
-							match.State.Turn = Player1
+							client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
+							log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
 						} else {
-							match.State.Turn = Player2
-						}
+							client.IsInMatch = true
+							match.Client2 = client
 
-						match.SendMatchData(cardsToSend.Serialized())
-						match.SendPlayerData()
-						match.SendOpponentData()
-						log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
+							client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
+
+							cardsToSend, drawsUntilValid := GenerateCards()
+							initialisedCards := InitialiseCards(cardsToSend, drawsUntilValid)
+
+							match.State.Cards = initialisedCards
+
+							// Update the match phase
+							match.SetMatchStart()
+
+							if match.State.Cards.Player1Hand[0].Value() < match.State.Cards.Player1Hand[0].Value() {
+								match.State.Turn = Player1
+							} else {
+								match.State.Turn = Player2
+							}
+
+							match.SendMatchData(cardsToSend.Serialized())
+							match.SendPlayerData()
+							match.SendOpponentData()
+							log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
+						}
 					}
 				} else {
 					client.IsInMatch = true
@@ -167,19 +176,27 @@ func (gs *Server) MainLoop() {
 					initiator.Close(protocol.NewMessage(protocol.WSMTText, initiatorReason, initiatorMessage))
 
 					if match.State.Phase != WaitingForPlayers {
-						other.Close(protocol.NewMessage(protocol.WSMTText, otherReason, otherMessage))
+						if (toRemove[i].Client.IsSameConnection(match.Client1)) || toRemove[i].Client.IsSameConnection(match.Client2) {
+							other.Close(protocol.NewMessage(protocol.WSMTText, otherReason, otherMessage))
 
-						delete(gs.matches, match.ID)
-						log.Printf("Client's [%s][%s] left the game server - match [%d] ended", match.Client1.PublicID, match.Client2.PublicID, match.ID)
-					} else {
-						if match.Client1.DBID == toRemove[i].Client.DBID {
-							match.Client1 = nil
+							delete(gs.matches, match.ID)
+							log.Printf("Client's [%s][%s] left the game server - match [%d] ended", match.Client1.PublicID, match.Client2.PublicID, match.ID)
 						} else {
+							log.Printf("Client [%s] left the game server - match [%d] still waiting for clients", initiator.PublicID, match.ID)
+						}
+					} else {
+						matched := false
+						if toRemove[i].Client.IsSameConnection(match.Client1) {
+							match.Client1 = nil
+							matched = true
+						} else if toRemove[i].Client.IsSameConnection(match.Client2) {
 							match.Client2 = nil
+							matched = true
 						}
 
-						toRemove[i].Client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[i].Reason, toRemove[i].Message))
-
+						if matched {
+							toRemove[i].Client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[i].Reason, toRemove[i].Message))
+						}
 						log.Printf("Client [%s] left the game server - match [%d] still waiting for clients", initiator.PublicID, match.ID)
 					}
 				}

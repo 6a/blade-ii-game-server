@@ -62,6 +62,11 @@ func (client *GClient) pollSend() {
 	}
 }
 
+// IsSameConnection returns true if the passed in client is the same as the object that this function is called from
+func (client *GClient) IsSameConnection(other *GClient) bool {
+	return other != nil && client.connection.UUID.Compare(other.connection.UUID) == 0
+}
+
 // Tick reads any incoming messages and passes outgoing messages to the queue
 func (client *GClient) Tick() {
 	// Process receive queue

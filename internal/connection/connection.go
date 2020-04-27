@@ -3,6 +3,8 @@ package connection
 import (
 	"time"
 
+	"github.com/rs/xid"
+
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 
 	"github.com/gorilla/websocket"
@@ -28,13 +30,14 @@ type Connection struct {
 	Joined       time.Time
 	Latency      uint16
 	ReceiveQueue chan protocol.Message
-	Out          chan protocol.Message
+	SendQueue    chan protocol.Message
+	UUID         xid.ID
 	pingTimer    *time.Ticker
 }
 
 func (connection *Connection) init() {
 	connection.ReceiveQueue = make(chan protocol.Message, MessageBufferSize)
-	connection.Out = make(chan protocol.Message, MessageBufferSize)
+	connection.SendQueue = make(chan protocol.Message, MessageBufferSize)
 
 	// Set up pong handler
 	connection.WS.SetReadDeadline(time.Now().Add(pongWait))
@@ -42,6 +45,9 @@ func (connection *Connection) init() {
 
 	// Ticker
 	connection.pingTimer = time.NewTicker(pingPeriod)
+
+	// UUID
+	connection.UUID = xid.New()
 }
 
 func (connection *Connection) pongHandler(pong string) error {
@@ -70,7 +76,7 @@ func (connection *Connection) WriteMessage(message protocol.Message) error {
 
 // SendMessage sends a messages (in reality it adds it to a queue and it is sent shortly after)
 func (connection *Connection) SendMessage(message protocol.Message) {
-	connection.Out <- message
+	connection.SendQueue <- message
 }
 
 // GetNextReceiveMessage gets the next message from the client from the inbound message queue
@@ -82,7 +88,7 @@ func (connection *Connection) GetNextReceiveMessage() protocol.Message {
 func (connection *Connection) GetNextSendMessage() protocol.Message {
 	for {
 		select {
-		case message := <-connection.Out:
+		case message := <-connection.SendQueue:
 			return message
 		case <-connection.pingTimer.C:
 			// Dont bother checking for errors as they will be picked up by the message pumps

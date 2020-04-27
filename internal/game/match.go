@@ -31,11 +31,6 @@ func (match *Match) Tick() {
 	match.tickClient(match.Client2, match.Client1, Player2)
 }
 
-// IsFull returns true when the match is occupied by two players
-func (match *Match) IsFull() bool {
-	return match.Client1 != nil && match.Client2 != nil
-}
-
 // BroadCast sends the specified message to both clients
 func (match *Match) BroadCast(message protocol.Message) {
 	match.Client1.SendMessage(message)
