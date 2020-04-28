@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log"
 	"strconv"
+	"sync"
 
 	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
@@ -15,11 +16,12 @@ const debugGameID uint64 = 20
 
 // Match is a wrapper for a matche's data and client connections etc
 type Match struct {
-	ID      uint64
-	Client1 *GClient
-	Client2 *GClient
-	State   MatchState
-	Server  *Server
+	ID        uint64
+	Client1   *GClient
+	Client2   *GClient
+	State     MatchState
+	Server    *Server
+	phaseLock sync.Mutex
 }
 
 // Tick reads any incoming messages and passes outgoing messages to the queue
@@ -86,7 +88,7 @@ func (match *Match) SendOpponentData() {
 // Database update is performed in a goroutine
 func (match *Match) SetMatchStart() {
 	// Update the local match state
-	match.State.Phase = Play
+	match.SetPhase(Play)
 
 	// Early exit if we are currently in the debug match (dont write to the db)
 	if match.ID == debugGameID {
@@ -126,6 +128,21 @@ func (match *Match) SetMatchResult() {
 			log.Printf("Failed to update match result: %s", err.Error())
 		}
 	}()
+}
+
+// SetPhase sets the match phase
+func (match *Match) SetPhase(phase Phase) {
+	match.phaseLock.Lock()
+	defer match.phaseLock.Unlock()
+	match.State.Phase = phase
+
+}
+
+// GetPhase gets the match phase
+func (match *Match) GetPhase() Phase {
+	match.phaseLock.Lock()
+	defer match.phaseLock.Unlock()
+	return match.State.Phase
 }
 
 func (match *Match) isValidMove(move Move, player Player) bool {

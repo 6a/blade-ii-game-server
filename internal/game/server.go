@@ -36,15 +36,6 @@ func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, dis
 
 // Remove adds a client to the unregister queue, to be removed next cycle
 func (gs *Server) Remove(client *GClient, reason protocol.B2Code, message string) {
-	if client.IsInMatch {
-		if match, ok := gs.matches[client.MatchID]; ok {
-			if match.State.Phase == Play {
-				// Update the match phase
-				match.State.Phase = Finished
-			}
-		}
-	}
-
 	gs.unregister <- UnregisterRequest{
 		Client:  client,
 		Reason:  reason,
@@ -63,20 +54,19 @@ func (gs *Server) MainLoop() {
 			select {
 			case client := <-gs.register:
 				if match, ok := gs.matches[client.MatchID]; ok && match.Client1 != nil {
-					if match.State.Phase >= Play {
+					if match.GetPhase() >= Play {
 						gs.Remove(client, protocol.WSCMatchFull, "Attempted to join a match which already has both clients registered")
 					} else {
+						client.IsInMatch = true
+
 						if match.Client1.DBID == client.DBID {
-							client.IsInMatch = true
-							gs.matches[client.MatchID] = &Match{
-								ID:      client.MatchID,
-								Client1: client,
-							}
+							gs.Remove(gs.matches[client.MatchID].Client1, protocol.WSCMatchMultipleConnections, "Removing old connection from same client")
+
+							gs.matches[client.MatchID].Client1 = client
 
 							client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
 							log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
 						} else {
-							client.IsInMatch = true
 							match.Client2 = client
 
 							client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
@@ -150,7 +140,7 @@ func (gs *Server) MainLoop() {
 						otherReason = protocol.WSCMatchForfeit
 						otherMessage = "Opponent forfeited the match"
 
-						if match.State.Phase > WaitingForPlayers {
+						if match.GetPhase() > WaitingForPlayers {
 							match.State.Winner = other.DBID
 							match.SetMatchResult()
 						}
@@ -161,7 +151,7 @@ func (gs *Server) MainLoop() {
 						otherReason = protocol.WSCMatchForfeit
 						otherMessage = "Opponent forfeited the match"
 
-						if match.State.Phase > WaitingForPlayers {
+						if match.GetPhase() > WaitingForPlayers {
 							match.State.Winner = other.DBID
 							match.SetMatchResult()
 						}
@@ -175,7 +165,9 @@ func (gs *Server) MainLoop() {
 
 					initiator.Close(protocol.NewMessage(protocol.WSMTText, initiatorReason, initiatorMessage))
 
-					if match.State.Phase != WaitingForPlayers {
+					if match.GetPhase() != WaitingForPlayers {
+						match.SetPhase(Finished)
+
 						if (toRemove[i].Client.IsSameConnection(match.Client1)) || toRemove[i].Client.IsSameConnection(match.Client2) {
 							other.Close(protocol.NewMessage(protocol.WSMTText, otherReason, otherMessage))
 
@@ -208,7 +200,7 @@ func (gs *Server) MainLoop() {
 
 		// Tick all matches
 		for _, match := range gs.matches {
-			if match.State.Phase > WaitingForPlayers {
+			if match.GetPhase() > WaitingForPlayers {
 				match.Tick()
 			}
 		}
