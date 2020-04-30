@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/6a/blade-ii-game-server/internal/apiinterface"
 	"github.com/6a/blade-ii-game-server/internal/matchmaking"
 
 	"github.com/6a/blade-ii-game-server/internal/database"
@@ -35,6 +36,8 @@ func main() {
 	matchmakingServer.Init()
 
 	routes.SetupMatchMaking(&matchmakingServer)
+
+	apiinterface.UpdateMatchStats(134, 135, apiinterface.Player2)
 
 	// Serve
 	log.Printf("Blade II Online Gameserver listening on: %v", address)
