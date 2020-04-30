@@ -14,7 +14,7 @@ const clientDataDelimiter string = "."
 const payloadDelimiter string = ":"
 const debugGameID uint64 = 20
 
-// Match is a wrapper for a matche's data and client connections etc
+// Match is a wrapper for a matches data and client connections etc
 type Match struct {
 	ID        uint64
 	Client1   *GClient
@@ -61,8 +61,18 @@ func (match *Match) SendMatchData(cards string) {
 
 // SendPlayerData sends each player's (their own) name to the respective client
 func (match *Match) SendPlayerData() {
-	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionPlayerData, match.Client1.DisplayName)))
-	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionPlayerData, match.Client2.DisplayName)))
+	var client1Buffer bytes.Buffer
+	client1Buffer.WriteString(match.Client1.DisplayName)
+	client1Buffer.WriteString(clientDataDelimiter)
+	client1Buffer.WriteString(strconv.Itoa(int(match.Client1.Avatar)))
+
+	var client2Buffer bytes.Buffer
+	client2Buffer.WriteString(match.Client2.DisplayName)
+	client2Buffer.WriteString(clientDataDelimiter)
+	client2Buffer.WriteString(strconv.Itoa(int(match.Client2.Avatar)))
+
+	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionPlayerData, client1Buffer.String())))
+	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionPlayerData, client2Buffer.String())))
 }
 
 // SendOpponentData sends each player the opponents data
@@ -71,6 +81,8 @@ func (match *Match) SendOpponentData() {
 	client1Buffer.WriteString(match.Client2.DisplayName)
 	client1Buffer.WriteString(clientDataDelimiter)
 	client1Buffer.WriteString(match.Client2.PublicID)
+	client1Buffer.WriteString(clientDataDelimiter)
+	client1Buffer.WriteString(strconv.Itoa(int(match.Client2.Avatar)))
 
 	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionOpponentData, client1Buffer.String())))
 
@@ -78,6 +90,8 @@ func (match *Match) SendOpponentData() {
 	client2Buffer.WriteString(match.Client1.DisplayName)
 	client2Buffer.WriteString(clientDataDelimiter)
 	client2Buffer.WriteString(match.Client1.PublicID)
+	client2Buffer.WriteString(clientDataDelimiter)
+	client2Buffer.WriteString(strconv.Itoa(int(match.Client1.Avatar)))
 
 	match.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, makeMessageString(InstructionOpponentData, client2Buffer.String())))
 }
@@ -110,11 +124,6 @@ func (match *Match) SetMatchStart() {
 //
 // Performed in a goroutine
 func (match *Match) SetMatchResult() {
-	// Early exit if the winner is not yet decided
-	if match.State.Winner == 0 {
-		return
-	}
-
 	// Early exit if we are currently in the debug match (dont write to the db)
 	if match.ID == debugGameID {
 		return
@@ -127,6 +136,9 @@ func (match *Match) SetMatchResult() {
 			// Output to log but otherwise continue
 			log.Printf("Failed to update match result: %s", err.Error())
 		}
+
+		// Update the MMR's
+		
 	}()
 }
 

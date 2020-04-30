@@ -54,14 +54,14 @@ func HandleGSConnection(wsconn *websocket.Conn, gs *game.Server) {
 
 				sendMessage(wsconn, protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchIDConfirmed, ""))
 
-				// Grab the clients display name as well - if this errors, log to console and use a placeholder
-				displayname, err := database.GetDisplayName(DBID)
+				// Grab the clients display name and avatar as well - if this errors, log to console and use a placeholder
+				displayname, avatar, err := database.GetClientNameAndAvatar(DBID)
 				if err != nil {
 					log.Printf("Error getting displayname for user [ %d ]: %s", DBID, err.Error())
 					displayname = "<unknown>"
 				}
 
-				gs.AddClient(wsconn, DBID, publicID, displayname, matchID)
+				gs.AddClient(wsconn, DBID, publicID, displayname, avatar, matchID)
 				return
 			}
 		case <-time.After(connectionTimeOut):

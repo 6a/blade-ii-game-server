@@ -8,11 +8,11 @@ import (
 
 // EnvironmentVariables is a light wrapper for the environmental variables required for the database package
 type EnvironmentVariables struct {
-	User          string
-	Pass          string
-	URL           string
-	Port          string
-	Name          string
+	DBUsername    string
+	DBPass        string
+	DBURL         string
+	DBPort        string
+	DBName        string
 	TableUsers    string
 	TableProfiles string
 	TableMatches  string
@@ -21,33 +21,33 @@ type EnvironmentVariables struct {
 
 // Load attempts to read in all the required environment variables
 func (ev *EnvironmentVariables) Load() error {
-	ev.User = os.Getenv("db_user")
-	ev.Pass = os.Getenv("db_pass")
-	ev.URL = os.Getenv("db_url")
-	ev.Port = os.Getenv("db_port")
-	ev.Name = os.Getenv("db_name")
+	ev.DBUsername = os.Getenv("db_user")
+	ev.DBPass = os.Getenv("db_pass")
+	ev.DBURL = os.Getenv("db_url")
+	ev.DBPort = os.Getenv("db_port")
+	ev.DBName = os.Getenv("db_name")
 	ev.TableUsers = os.Getenv("db_table_users")
 	ev.TableProfiles = os.Getenv("db_table_profiles")
 	ev.TableMatches = os.Getenv("db_table_matches")
 	ev.TableTokens = os.Getenv("db_table_tokens")
 
-	if ev.User == "" {
+	if ev.DBUsername == "" {
 		return errors.New("Environment variable [db_user] was not set, or is empty")
 	}
 
-	if ev.Pass == "" {
+	if ev.DBPass == "" {
 		return errors.New("Environment variable [db_pass] was not set, or is empty")
 	}
 
-	if ev.URL == "" {
+	if ev.DBURL == "" {
 		return errors.New("Environment variable [db_url] was not set, or is empty")
 	}
 
-	if ev.Port == "" {
+	if ev.DBPort == "" {
 		return errors.New("Environment variable [db_port] was not set, or is empty")
 	}
 
-	if ev.Name == "" {
+	if ev.DBName == "" {
 		return errors.New("Environment variable [db_name] was not set, or is empty")
 	}
 

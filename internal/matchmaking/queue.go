@@ -50,7 +50,7 @@ func (queue *Queue) MainLoop() {
 
 		// Perform all pending tasks
 		toRemove := make([]UnregisterRequest, 0)
-		for len(queue.register)+len(queue.unregister)+len(queue.broadcast) > 0 {
+		for len(queue.register)+len(queue.unregister)+len(queue.broadcast)+len(queue.commands) > 0 {
 			select {
 			case client := <-queue.register:
 				queue.clients[queue.nextIndex] = client

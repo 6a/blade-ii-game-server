@@ -17,11 +17,11 @@ type GClient struct {
 	MatchID     uint64
 	PublicID    string
 	DisplayName string
+	Avatar      uint8
 	connection  *connection.Connection
 	server      *Server
-	PendingKill bool
+	pendingKill bool
 	killLock    sync.Mutex
-	IsInMatch   bool
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
@@ -85,7 +85,7 @@ func (client *GClient) Close(message protocol.Message) {
 	client.SendMessage(message)
 
 	client.killLock.Lock()
-	client.PendingKill = true
+	client.pendingKill = true
 	client.killLock.Unlock()
 
 	time.Sleep(closeWaitPeriod)
@@ -95,11 +95,11 @@ func (client *GClient) Close(message protocol.Message) {
 func (client *GClient) isPendingKill() bool {
 	client.killLock.Lock()
 	defer client.killLock.Unlock()
-	return client.PendingKill
+	return client.pendingKill
 }
 
 // NewClient creates a new Client
-func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname string, matchID uint64, gameServer *Server) GClient {
+func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname string, matchID uint64, avatar uint8, gameServer *Server) GClient {
 	connection := connection.NewConnection(wsconn)
 
 	return GClient{
@@ -107,6 +107,7 @@ func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname stri
 		PublicID:    pid,
 		DisplayName: displayname,
 		MatchID:     matchID,
+		Avatar:      avatar,
 		connection:  &connection,
 		server:      gameServer,
 	}

@@ -25,7 +25,7 @@ func Init() {
 
 	pstatements.Construct(&envvars)
 
-	var connString = fmt.Sprintf("%v:%v@(%v:%v)/%v?tls=skip-verify&parseTime=true", envvars.User, envvars.Pass, envvars.URL, envvars.Port, envvars.Name)
+	var connString = fmt.Sprintf("%v:%v@(%v:%v)/%v?tls=skip-verify&parseTime=true", envvars.DBUsername, envvars.DBPass, envvars.DBURL, envvars.DBPort, envvars.DBName)
 	mysql, err := sql.Open("mysql", connString)
 	if err != nil {
 		log.Fatal(err)
@@ -123,21 +123,33 @@ func ValidateMatch(userID uint64, matchID uint64) (valid bool, err error) {
 	return found, nil
 }
 
-// GetDisplayName returns the displayname for the specified user
-func GetDisplayName(userID uint64) (displayname string, err error) {
+// GetClientNameAndAvatar returns the displayname and avatar id for the specified user
+func GetClientNameAndAvatar(userID uint64) (displayname string, avatar uint8, err error) {
 	statement, err := db.Prepare(pstatements.GetDisplayName)
 	if err != nil {
-		return displayname, errors.New("Internal server error: Failed to prepare statement")
+		return displayname, 0, errors.New("Internal server error: Failed to prepare statement")
+	}
+
+	err = statement.QueryRow(userID).Scan(&displayname)
+	if err != nil {
+		return displayname, 0, errors.New("User does not exist")
+	}
+
+	statement.Close()
+
+	statement, err = db.Prepare(pstatements.GetAvatar)
+	if err != nil {
+		return displayname, 0, errors.New("Internal server error: Failed to prepare statement")
 	}
 
 	defer statement.Close()
 
-	err = statement.QueryRow(userID).Scan(&displayname)
+	err = statement.QueryRow(userID).Scan(&avatar)
 	if err != nil {
-		return displayname, errors.New("User does not exist")
+		return displayname, 0, errors.New("User does not exist")
 	}
 
-	return displayname, nil
+	return displayname, avatar, nil
 }
 
 // SetMatchStart updates the phase + start time column for the specified match
