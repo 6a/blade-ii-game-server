@@ -87,8 +87,6 @@ func GenerateCards() (cards Cards, drawsUntilValid uint) {
 
 		// Check the cards validity - a result of true will cause the loop to exit
 		success, drawsUntilValid = validateCards(&cards)
-
-		break
 	}
 
 	return cards, drawsUntilValid
