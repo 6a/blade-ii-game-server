@@ -32,7 +32,7 @@ const (
 // Value returns the point value of the specified card
 func (c *Card) Value() (value uint8) {
 	if *c < Bolt {
-		value = uint8(*c)
+		value = uint8(*c) + 1
 	} else if *c >= Bolt && *c <= Force {
 		value = 1
 	} else {

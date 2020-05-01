@@ -12,6 +12,7 @@ import (
 const SerializedCardsDelimiter string = "."
 const maxDrawsOnStart uint8 = 3
 const postInitialisationDeckSize uint8 = 5
+const startingHandSize uint8 = 10
 
 // Cards is a container for all the cards on the field
 type Cards struct {
@@ -177,7 +178,7 @@ func validateCards(cards *Cards) (valid bool, drawsUntilValid uint) {
 
 			// Also ensure that the score difference from the opponent hand is beatable by the player that goes first (if their
 			// hand does not have any cards of high enough value they will insta-lose otherwise)
-			var cardSet []Card
+			var cardSet = make([]Card, startingHandSize)
 			var cardToBeatOrMatch Card
 			var scoreToCheck uint8
 
