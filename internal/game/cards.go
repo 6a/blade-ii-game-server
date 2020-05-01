@@ -178,7 +178,7 @@ func validateCards(cards *Cards) (valid bool, drawsUntilValid uint) {
 			// Also ensure that the score difference from the opponent hand is beatable by the player that goes first (if their
 			// hand does not have any cards of high enough value they will insta-lose otherwise)
 			var cardSet []Card
-			var opponentCard Card
+			var cardToBeatOrMatch Card
 			var scoreToCheck uint8
 
 			// Copy the cards that we will be examining. Note the explicit copy, as we modify the array later which would
@@ -186,22 +186,18 @@ func validateCards(cards *Cards) (valid bool, drawsUntilValid uint) {
 			if player1Score < player2Score {
 				copy(cardSet, cards.Player1Deck[postInitialisationDeckSize:])
 				scoreToCheck = player1Score
+				cardToBeatOrMatch = cards.Player2Deck[cardIndex]
 			} else {
 				copy(cardSet, cards.Player2Deck[postInitialisationDeckSize:])
+				scoreToCheck = player2Score
+				cardToBeatOrMatch = cards.Player1Deck[cardIndex]
 			}
 
 			// Reverse the hand as we would in fact be drawing from the top of the deck to the start of the hand
 			reverseCardArray(cardSet)
 
 			// If, after the first legal draw, the player that goes first has a valid move to play, the cards are valid
-			if validFirstMoveAvailable(cardSet, opponentCard, scoreToCheck) {
-				return true, (uint(i) + 1)
-
-			}
-
-			// If we get to this point, the first draw was legal, but the player that goes first was immediately put into a position where they
-			// could not continue (aside from playing blast cards, but these are ignored)
-			break
+			return validFirstMoveAvailable(cardSet, cardToBeatOrMatch, scoreToCheck), (uint(i) + 1)
 		}
 	}
 
@@ -209,7 +205,7 @@ func validateCards(cards *Cards) (valid bool, drawsUntilValid uint) {
 }
 
 // validFirstMoveAvailable returns true if the specified set of cards contains one that can beat the specified card (first move only, i.e. after initial draw from deck)
-func validFirstMoveAvailable(cardSet []Card, card Card, currentScore uint8) bool {
+func validFirstMoveAvailable(cardSet []Card, cardToBeatOrMatch Card, currentScore uint8) bool {
 	if len(cardSet) == 1 {
 		return true
 	}
@@ -221,18 +217,23 @@ func validFirstMoveAvailable(cardSet []Card, card Card, currentScore uint8) bool
 		// If there will be at least one non-effect card available if this one is played
 		if !containsOnlyEffectCards(cardSetWithoutCurrent) {
 
-			// If playing the card will beat the score, its valid
-			// Note blast cards are skipped as they dont change the score
-			// Note force cards are further checked to ensure that the resultant score is greater than or equal to the specified card
-			// Checking like this works for mirro and bolt as they change the score
-			if cardSet[i].Value() >= card.Value() {
-				if cardSet[i] != Blast {
-					if cardSet[i] == Force {
-						if currentScore*2 >= card.Value() {
-							return true
-						}
-					}
+			// Blasts are always invalid as they do not change the score
+			if cardSet[i] != Blast {
 
+				// if the card causes the score to beat or match, its valid
+				if currentScore+cardSet[i].Value() >= cardToBeatOrMatch.Value() {
+					return true
+				}
+
+				// If the force effect causes the score to beat or match, its valid
+				if cardSet[i] == Force {
+					if currentScore*2 >= cardToBeatOrMatch.Value() {
+						return true
+					}
+				}
+
+				// Bolts are always valid
+				if cardSet[i] == Bolt {
 					return true
 				}
 			}
