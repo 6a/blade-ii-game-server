@@ -232,8 +232,8 @@ func validFirstMoveAvailable(cardSet []Card, cardToBeatOrMatch Card, currentScor
 					}
 				}
 
-				// Bolts are always valid
-				if cardSet[i] == Bolt {
+				// Bolts and mirrors are always valid
+				if cardSet[i] == Bolt || cardSet[i] == Mirror {
 					return true
 				}
 			}
