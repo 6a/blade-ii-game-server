@@ -399,11 +399,11 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 			match.Client1.WaitingForMove = true
 			match.Client2.WaitingForMove = true
 
-			*targetDiscard = append(*targetDiscard, (*targetHand)...)
-			targetHand = nil
+			*targetDiscard = append(*targetDiscard, (*targetField)...)
+			*targetField = nil
 
-			*oppositeDiscard = append(*oppositeDiscard, (*oppositeHand)...)
-			oppositeHand = nil
+			*oppositeDiscard = append(*oppositeDiscard, (*oppositeField)...)
+			*oppositeField = nil
 
 		} else if match.State.Player1Score < match.State.Player2Score {
 			match.State.Turn = Player1
