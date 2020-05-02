@@ -1,7 +1,6 @@
 package connection
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/rs/xid"
@@ -58,9 +57,6 @@ func (connection *Connection) pongHandler(pong string) error {
 	connection.Latency = time.Now().Sub(connection.lastPingTime)
 
 	connection.pingTimer.Reset(pingPeriod)
-
-	// Send ping update to client
-	connection.SendQueue <- protocol.NewMessage(protocol.WSMTText, protocol.WSCLatencyUpdate, fmt.Sprintf("%d", connection.Latency.Milliseconds()))
 
 	return nil
 }
