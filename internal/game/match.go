@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
@@ -14,15 +15,18 @@ const clientDataDelimiter string = "."
 const payloadDelimiter string = ":"
 const debugGameID uint64 = 20
 const boltedCardOffset = 11
+const turnMaxWait = 22
 
 // Match is a wrapper for a matches data and client connections etc
 type Match struct {
-	ID        uint64
-	Client1   *GClient
-	Client2   *GClient
-	State     MatchState
-	Server    *Server
-	phaseLock sync.Mutex
+	ID          uint64
+	Client1     *GClient
+	Client2     *GClient
+	State       MatchState
+	Server      *Server
+	phaseLock   sync.Mutex
+	turnTimer   *time.Timer
+	timerTarget Player
 }
 
 // Tick reads any incoming messages and passes outgoing messages to the queue
@@ -306,9 +310,7 @@ func (match *Match) updateGameState(player Player, move Move) {
 		match.State.Turn = Player2
 	}
 
-	// Based on whos turn it is, start a timer
-	// If the turn is undecided, wait for both
-	// TODO implement undecided turn message sending to the server (only for network games?)
+	match.turnTimer = time.NewTimer()
 }
 
 func isBolted(card Card) bool {

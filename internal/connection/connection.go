@@ -28,11 +28,12 @@ const (
 type Connection struct {
 	WS           *websocket.Conn
 	Joined       time.Time
-	Latency      uint16
+	Latency      time.Duration
 	ReceiveQueue chan protocol.Message
 	SendQueue    chan protocol.Message
 	UUID         xid.ID
-	pingTimer    *time.Ticker
+	pingTimer    *time.Timer
+	lastPingTime time.Time
 }
 
 func (connection *Connection) init() {
@@ -44,7 +45,7 @@ func (connection *Connection) init() {
 	connection.WS.SetPongHandler(connection.pongHandler)
 
 	// Ticker
-	connection.pingTimer = time.NewTicker(pingPeriod)
+	connection.pingTimer = time.NewTimer(pingPeriod)
 
 	// UUID
 	connection.UUID = xid.New()
@@ -52,6 +53,12 @@ func (connection *Connection) init() {
 
 func (connection *Connection) pongHandler(pong string) error {
 	connection.WS.SetReadDeadline(time.Now().Add(pongWait))
+	connection.Latency = time.Now().Sub(connection.lastPingTime)
+
+	if !connection.pingTimer.Stop() {
+		<-connection.pingTimer.C
+	}
+	connection.pingTimer.Reset(pingPeriod)
 	return nil
 }
 
@@ -92,6 +99,7 @@ func (connection *Connection) GetNextSendMessage() protocol.Message {
 			return message
 		case <-connection.pingTimer.C:
 			// Dont bother checking for errors as they will be picked up by the message pumps
+			connection.lastPingTime = time.Now()
 			_ = connection.WS.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(maximumWriteWait))
 		}
 	}
@@ -99,6 +107,7 @@ func (connection *Connection) GetNextSendMessage() protocol.Message {
 
 // Close closes the connection
 func (connection *Connection) Close() error {
+	connection.pingTimer.Stop()
 	return connection.WS.Close()
 }
 
