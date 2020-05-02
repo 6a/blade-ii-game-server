@@ -22,11 +22,11 @@ const (
 	CardBlast               B2MatchInstruction = 10
 	CardForce               B2MatchInstruction = 11
 
-	// Messages that can be sent to and from the serve
+	// Messages that can be sent to and from the server
 	InstructionForfeit B2MatchInstruction = 12
 	InstructionMessage B2MatchInstruction = 13
 
-	// Messages that can only be received from the serve
+	// Messages that can only be received from the server
 	InstructionCards              B2MatchInstruction = 14
 	InstructionPlayerData         B2MatchInstruction = 15
 	InstructionOpponentData       B2MatchInstruction = 16
