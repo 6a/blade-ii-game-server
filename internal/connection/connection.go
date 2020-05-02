@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/rs/xid"
@@ -53,12 +54,14 @@ func (connection *Connection) init() {
 
 func (connection *Connection) pongHandler(pong string) error {
 	connection.WS.SetReadDeadline(time.Now().Add(pongWait))
+
 	connection.Latency = time.Now().Sub(connection.lastPingTime)
 
-	if !connection.pingTimer.Stop() {
-		<-connection.pingTimer.C
-	}
 	connection.pingTimer.Reset(pingPeriod)
+
+	// Send ping update to client
+	connection.SendQueue <- protocol.NewMessage(protocol.WSMTText, protocol.WSCLatencyUpdate, fmt.Sprintf("%d", connection.Latency.Milliseconds()))
+
 	return nil
 }
 
@@ -112,12 +115,12 @@ func (connection *Connection) Close() error {
 }
 
 // NewConnection creates a new connection
-func NewConnection(wsconn *websocket.Conn) Connection {
+func NewConnection(wsconn *websocket.Conn) *Connection {
 	connection := Connection{
 		WS:     wsconn,
 		Joined: time.Now(),
 	}
 
 	connection.init()
-	return connection
+	return &connection
 }

@@ -99,16 +99,16 @@ func (client *GClient) isPendingKill() bool {
 }
 
 // NewClient creates a new Client
-func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname string, matchID uint64, avatar uint8, gameServer *Server) GClient {
+func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname string, matchID uint64, avatar uint8, gameServer *Server) *GClient {
 	connection := connection.NewConnection(wsconn)
 
-	return GClient{
+	return &GClient{
 		DBID:        dbid,
 		PublicID:    pid,
 		DisplayName: displayname,
 		MatchID:     matchID,
 		Avatar:      avatar,
-		connection:  &connection,
+		connection:  connection,
 		server:      gameServer,
 	}
 }

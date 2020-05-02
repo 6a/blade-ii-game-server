@@ -31,7 +31,7 @@ func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, dis
 	client := NewClient(wsconn, dbid, pid, displayname, matchID, avatar, gs)
 	client.StartEventLoop()
 
-	gs.register <- &client
+	gs.register <- client
 }
 
 // Remove adds a client to the unregister queue, to be removed next cycle
@@ -223,7 +223,7 @@ func (gs *Server) Init() {
 }
 
 // NewServer creates a new game server
-func NewServer() Server {
+func NewServer() *Server {
 	gs := Server{}
-	return gs
+	return &gs
 }

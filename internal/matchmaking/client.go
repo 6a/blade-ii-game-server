@@ -104,7 +104,7 @@ func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, mmr int, queue *
 	connection := connection.NewConnection(wsconn)
 
 	return MMClient{
-		connection: &connection,
+		connection: connection,
 		DBID:       dbid,
 		PublicID:   pid,
 		MMR:        mmr,

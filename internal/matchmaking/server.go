@@ -22,7 +22,7 @@ func (ms *Server) Init() {
 }
 
 // NewServer creates a new matchmaking server
-func NewServer() Server {
+func NewServer() *Server {
 	ms := Server{}
-	return ms
+	return &ms
 }

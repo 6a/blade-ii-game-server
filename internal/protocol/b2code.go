@@ -10,6 +10,7 @@ const WSCNone B2Code = 0
 const (
 	WSCConnectionTimeOut      B2Code = 100
 	WSCUnknownConnectionError B2Code = 101
+	WSCLatencyUpdate          B2Code = 102
 )
 
 // Auth

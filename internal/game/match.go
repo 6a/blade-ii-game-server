@@ -15,7 +15,7 @@ const clientDataDelimiter string = "."
 const payloadDelimiter string = ":"
 const debugGameID uint64 = 20
 const boltedCardOffset = 11
-const turnMaxWait = 22
+const turnMaxWait = time.Millisecond * 21
 
 // Match is a wrapper for a matches data and client connections etc
 type Match struct {
@@ -213,33 +213,33 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 func (match *Match) updateGameState(player Player, move Move) {
 	var targetHand []Card
 	var targetField []Card
-	var targetDeck []Card
+	// var targetDeck []Card
 	var targetDiscard []Card
 
 	var oppositeHand []Card
 	var oppositeField []Card
-	var oppositeDeck []Card
+	// var oppositeDeck []Card
 	var oppositeDiscard []Card
 
 	if player == Player1 {
 		targetHand = match.State.Cards.Player1Hand
 		targetField = match.State.Cards.Player1Field
-		targetDeck = match.State.Cards.Player1Deck
+		// targetDeck = match.State.Cards.Player1Deck
 		targetDiscard = match.State.Cards.Player1Discard
 
 		oppositeHand = match.State.Cards.Player2Hand
 		oppositeField = match.State.Cards.Player2Field
-		oppositeDeck = match.State.Cards.Player2Deck
+		// oppositeDeck = match.State.Cards.Player2Deck
 		oppositeDiscard = match.State.Cards.Player2Discard
 	} else {
 		targetHand = match.State.Cards.Player2Hand
 		targetField = match.State.Cards.Player2Field
-		targetDeck = match.State.Cards.Player2Deck
+		// targetDeck = match.State.Cards.Player2Deck
 		targetDiscard = match.State.Cards.Player2Discard
 
 		oppositeHand = match.State.Cards.Player1Hand
 		oppositeField = match.State.Cards.Player1Field
-		oppositeDeck = match.State.Cards.Player1Deck
+		// oppositeDeck = match.State.Cards.Player1Deck
 		oppositeDiscard = match.State.Cards.Player1Discard
 	}
 
@@ -310,7 +310,7 @@ func (match *Match) updateGameState(player Player, move Move) {
 		match.State.Turn = Player2
 	}
 
-	match.turnTimer = time.NewTimer()
+	match.turnTimer = time.NewTimer(turnMaxWait)
 }
 
 func isBolted(card Card) bool {
