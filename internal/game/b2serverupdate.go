@@ -1,5 +1,9 @@
 package game
 
+const serverMessageCardOffset uint8 = 1
+const serverMessageCardUpdateMin uint8 = 1
+const serverMessageCardUpdateMax uint8 = 11
+
 // B2MatchInstruction is an enum type that represents different different types of match instruction for Blade II Online
 type B2MatchInstruction uint8
 
@@ -36,3 +40,14 @@ const (
 	InstructionMatchSetupError  B2MatchInstruction = 22
 	InstructionMatchIllegalMove B2MatchInstruction = 23
 )
+
+// ToCard returns this instruction as a card (if possible)
+func (i B2MatchInstruction) ToCard() (card Card) {
+	card = ElliotsOrbalStaff
+
+	if uint8(i) >= serverMessageCardUpdateMin && uint8(i) <= serverMessageCardUpdateMax {
+		card = Card(uint8(i) - serverMessageCardOffset)
+	}
+
+	return card
+}

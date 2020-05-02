@@ -22,8 +22,10 @@ const (
 
 // MatchState represents the current state of a match
 type MatchState struct {
-	Winner uint64
-	Turn   Player
-	Cards  Cards
-	Phase  Phase
+	Winner       uint64
+	Turn         Player
+	Cards        Cards
+	Player1Score uint16
+	Player2Score uint16
+	Phase        Phase
 }

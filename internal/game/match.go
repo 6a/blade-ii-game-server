@@ -13,6 +13,7 @@ import (
 const clientDataDelimiter string = "."
 const payloadDelimiter string = ":"
 const debugGameID uint64 = 20
+const boltedCardOffset = 11
 
 // Match is a wrapper for a matches data and client connections etc
 type Match struct {
@@ -138,7 +139,7 @@ func (match *Match) SetMatchResult() {
 		}
 
 		// Update the MMR's
-		
+
 	}()
 }
 
@@ -159,9 +160,9 @@ func (match *Match) GetPhase() Phase {
 
 func (match *Match) isValidMove(move Move, player Player) bool {
 	// Early exit if the player tried to make a move during the other players turn
-	// if match.State.Turn != player && match.State.Turn != PlayerUndecided {
-	// 	return false
-	// }
+	if match.State.Turn != player && match.State.Turn != PlayerUndecided {
+		return false
+	}
 
 	return true
 }
@@ -206,5 +207,144 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 }
 
 func (match *Match) updateGameState(player Player, move Move) {
+	var targetHand []Card
+	var targetField []Card
+	var targetDeck []Card
+	var targetDiscard []Card
 
+	var oppositeHand []Card
+	var oppositeField []Card
+	var oppositeDeck []Card
+	var oppositeDiscard []Card
+
+	if player == Player1 {
+		targetHand = match.State.Cards.Player1Hand
+		targetField = match.State.Cards.Player1Field
+		targetDeck = match.State.Cards.Player1Deck
+		targetDiscard = match.State.Cards.Player1Discard
+
+		oppositeHand = match.State.Cards.Player2Hand
+		oppositeField = match.State.Cards.Player2Field
+		oppositeDeck = match.State.Cards.Player2Deck
+		oppositeDiscard = match.State.Cards.Player2Discard
+	} else {
+		targetHand = match.State.Cards.Player2Hand
+		targetField = match.State.Cards.Player2Field
+		targetDeck = match.State.Cards.Player2Deck
+		targetDiscard = match.State.Cards.Player2Discard
+
+		oppositeHand = match.State.Cards.Player1Hand
+		oppositeField = match.State.Cards.Player1Field
+		oppositeDeck = match.State.Cards.Player1Deck
+		oppositeDiscard = match.State.Cards.Player1Discard
+	}
+
+	inCard := move.Instruction.ToCard()
+	if !removeFirstOfType(targetHand, inCard) {
+		// Early exit to bad move
+		return
+	}
+
+	usedRodEffect := inCard == ElliotsOrbalStaff && len(targetField) > 0 && isBolted(targetField[len(targetField)-1])
+	usedBoltEffect := inCard == Bolt && len(oppositeField) > 0 && !isBolted(oppositeField[len(oppositeField)-1])
+	usedMirrorEffect := inCard == Mirror && len(targetField) > 0 && len(oppositeField) > 0
+	usedBlastEffect := inCard == Blast && len(oppositeHand) > 0
+	usedNormalOrForceCard := !usedRodEffect && !usedBoltEffect && !usedMirrorEffect && !usedBlastEffect
+
+	// If the selected card was a normal or force card, and the target players latest field card is flipped (bolted) remove it
+	if usedNormalOrForceCard && len(targetField) > 0 && isBolted(targetField[len(targetField)-1]) {
+		removedCard := targetField[len(targetField)-1]
+
+		if !removeFirstOfType(targetField, removedCard) {
+			// Early exit to bad move
+			return
+		}
+
+		targetDiscard = append(targetDiscard, removedCard)
+	}
+
+	if len(targetField) > 0 && !usedNormalOrForceCard {
+		if usedBlastEffect {
+			blastedCardInt, err := strconv.Atoi(move.Payload)
+			if err != nil {
+				// Early exit to bad move
+				return
+			}
+
+			blastedCard := Card(blastedCardInt)
+
+			if !removeFirstOfType(oppositeHand, blastedCard) {
+				// Early exit to bad move
+				return
+			}
+
+			oppositeDiscard = append(oppositeDiscard, blastedCard)
+
+		} else if usedRodEffect {
+			unBolt(targetField)
+		} else if usedBoltEffect {
+			bolt(oppositeField)
+		} else if usedMirrorEffect {
+			tempTargetField := targetField
+			targetField = oppositeField
+			oppositeField = tempTargetField
+		}
+
+		targetDiscard = append(targetDiscard, inCard)
+	} else {
+		targetField = append(targetField, inCard)
+	}
+
+	match.State.Player1Score = calculateScore(match.State.Cards.Player1Field)
+	match.State.Player2Score = calculateScore(match.State.Cards.Player2Field)
+
+	if match.State.Player1Score == match.State.Player2Score {
+		match.State.Turn = PlayerUndecided
+	} else if match.State.Player1Score < match.State.Player2Score {
+		match.State.Turn = Player1
+	} else {
+		match.State.Turn = Player2
+	}
+
+	// Based on whos turn it is, start a timer
+	// If the turn is undecided, wait for both
+	// TODO implement undecided turn message sending to the server (only for network games?)
+}
+
+func isBolted(card Card) bool {
+	return card > Force
+}
+
+func bolt(targetField []Card) {
+	if len(targetField) > 0 {
+		if targetField[len(targetField)-1] <= Force {
+			targetField[len(targetField)-1] = Card(uint8(targetField[len(targetField)-1]) + boltedCardOffset)
+		}
+	}
+}
+
+func unBolt(targetField []Card) {
+	if len(targetField) > 0 {
+		if targetField[len(targetField)-1] >= InactiveElliotsOrbalStaff {
+			targetField[len(targetField)-1] = Card(uint8(targetField[len(targetField)-1]) - boltedCardOffset)
+		}
+	}
+}
+
+func calculateScore(targetCards []Card) uint16 {
+	var total uint16 = 0
+
+	for i := 0; i < len(targetCards); i++ {
+		card := targetCards[i]
+
+		if !isBolted(card) {
+			if card == Force && i > 0 {
+				total *= 2
+			} else {
+				total += uint16(card.Value())
+			}
+		}
+	}
+
+	return total
 }

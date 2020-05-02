@@ -6,3 +6,21 @@ func reverseCardArray(inArray []Card) {
 		inArray[i], inArray[j] = inArray[j], inArray[i]
 	}
 }
+
+func removeFirstOfType(cards []Card, toRemove Card) (success bool) {
+	var indexToRemove = -1
+
+	for i := 0; i < len(cards); i++ {
+		if cards[i] == toRemove {
+			indexToRemove = i
+			break
+		}
+	}
+
+	if indexToRemove != -1 {
+		cards[indexToRemove] = cards[len(cards)-1]
+		cards = cards[:len(cards)-1]
+	}
+
+	return indexToRemove != -1
+}
