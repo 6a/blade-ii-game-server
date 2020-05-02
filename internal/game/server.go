@@ -15,7 +15,7 @@ const BufferSize = 256
 const readyCheckTime = time.Second * 5
 
 // How frequently to update the matchmaking queue (minimum wait between iterations)
-const pollTime = 1000 * time.Millisecond
+const pollTime = 250 * time.Millisecond
 
 // Server is the game server itself
 type Server struct {
