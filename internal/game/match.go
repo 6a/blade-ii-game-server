@@ -364,9 +364,9 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 			} else if usedBoltEffect {
 				bolt(*oppositeField)
 			} else if usedMirrorEffect {
-				tempTargetField := targetField
-				targetField = oppositeField
-				oppositeField = tempTargetField
+				tempTargetField := *targetField
+				*targetField = *oppositeField
+				*oppositeField = tempTargetField
 			}
 
 			*targetDiscard = append(*targetDiscard, inCard)
