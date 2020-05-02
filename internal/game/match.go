@@ -19,6 +19,7 @@ const debugGameID uint64 = 20
 const boltedCardOffset = 11
 const turnMaxWait = time.Millisecond * 21000
 const tiedScoreAdditionalWait = time.Millisecond * 4500 // additional time to allow for clearing the field etc client side
+const blastCardAdditionalWait = time.Millisecond * 4500 // additional time to allow for the long-ass blast animation
 
 // Match is a wrapper for a matches data and client connections etc
 type Match struct {
@@ -293,6 +294,9 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 
 	inCard := move.Instruction.ToCard()
 
+	// Hack - need to know if the move was a blast so that we can add additional delay leeway
+	var usedBlastEffect bool = false
+
 	// Edge case - if we are waiting for draws from both player, we remove from the deck/hand onto the field
 	if match.State.Turn == PlayerUndecided {
 		if len(*targetDeck) > 0 {
@@ -326,7 +330,7 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 		usedRodEffect := inCard == ElliotsOrbalStaff && len(*targetField) > 0 && isBolted((*targetField)[len(*targetField)-1])
 		usedBoltEffect := inCard == Bolt && len(*oppositeField) > 0 && !isBolted((*oppositeField)[len(*oppositeField)-1])
 		usedMirrorEffect := inCard == Mirror && len(*targetField) > 0 && len(*oppositeField) > 0
-		usedBlastEffect := inCard == Blast && len(*oppositeHand) > 0
+		usedBlastEffect = inCard == Blast && len(*oppositeHand) > 0
 		usedNormalOrForceCard := !usedRodEffect && !usedBoltEffect && !usedMirrorEffect && !usedBlastEffect
 
 		// If the selected card was a normal or force card, and the target players latest field card is flipped (bolted) remove it
@@ -419,6 +423,8 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 
 	if match.State.Player1Score == match.State.Player2Score {
 		nextTurnPeriod += tiedScoreAdditionalWait
+	} else if usedBlastEffect {
+		nextTurnPeriod += blastCardAdditionalWait
 	}
 
 	match.turnTimer.Stop()
