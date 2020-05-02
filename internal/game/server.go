@@ -76,12 +76,6 @@ func (gs *Server) MainLoop() {
 							// Update the match phase
 							match.SetMatchStart()
 
-							if match.State.Cards.Player1Hand[0].Value() < match.State.Cards.Player1Hand[0].Value() {
-								match.State.Turn = Player1
-							} else {
-								match.State.Turn = Player2
-							}
-
 							match.SendMatchData(cardsToSend.Serialized())
 							match.SendPlayerData()
 							match.SendOpponentData()
@@ -92,6 +86,7 @@ func (gs *Server) MainLoop() {
 					gs.matches[client.MatchID] = &Match{
 						ID:      client.MatchID,
 						Client1: client,
+						Server:  gs,
 					}
 
 					client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
@@ -113,7 +108,7 @@ func (gs *Server) MainLoop() {
 
 		// Tick all matches
 		for _, match := range gs.matches {
-			if match.GetPhase() > WaitingForPlayers {
+			if match.GetPhase() == Play {
 				match.Tick()
 			}
 		}
@@ -151,17 +146,26 @@ func (gs *Server) handleUnregisterQueue() {
 					other = match.Client1
 				}
 
-				if req.Reason == protocol.WSCMatchForfeit || req.Reason == protocol.WSCUnknownConnectionError {
+				if req.Reason == protocol.WSCUnknownConnectionError {
 					initiatorReason = protocol.WSCMatchForfeit
 					initiatorMessage = "Post-forfeit quit"
 
 					otherReason = protocol.WSCMatchForfeit
 					otherMessage = "Opponent forfeited the match"
 
+					// For disconnections, we need to determine the winner
 					if match.GetPhase() > WaitingForPlayers {
 						match.State.Winner = other.DBID
 						match.SetMatchResult()
 					}
+				} else if req.Reason == protocol.WSCMatchForfeit {
+					initiatorReason = protocol.WSCMatchForfeit
+					initiatorMessage = "Post-forfeit quit"
+
+					otherReason = protocol.WSCMatchForfeit
+					otherMessage = "Opponent forfeited the match"
+
+					match.SetMatchResult()
 				} else if req.Reason == protocol.WSCMatchIllegalMove {
 					initiatorReason = protocol.WSCMatchIllegalMove
 					initiatorMessage = "Post-illegal move forfeit quit"
@@ -169,16 +173,23 @@ func (gs *Server) handleUnregisterQueue() {
 					otherReason = protocol.WSCMatchForfeit
 					otherMessage = "Opponent forfeited the match"
 
-					if match.GetPhase() > WaitingForPlayers {
-						match.State.Winner = other.DBID
-						match.SetMatchResult()
-					}
+					match.SetMatchResult()
+				} else if req.Reason == protocol.WSCMatchTimeOut {
+					initiatorReason = protocol.WSCMatchTimeOut
+					initiatorMessage = "Timed out"
+
+					otherReason = protocol.WSCMatchForfeit
+					otherMessage = "Opponent timed out"
+
+					match.SetMatchResult()
 				} else {
 					initiatorReason = req.Reason
 					initiatorMessage = req.Message
 
 					otherReason = req.Reason
 					otherMessage = req.Message
+
+					match.SetMatchResult()
 				}
 
 				initiator.Close(protocol.NewMessage(protocol.WSMTText, initiatorReason, initiatorMessage))

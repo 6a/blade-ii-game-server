@@ -13,15 +13,16 @@ const closeWaitPeriod = time.Second * 1
 
 // GClient is a container for a websocket connection and its associated player data
 type GClient struct {
-	DBID        uint64
-	MatchID     uint64
-	PublicID    string
-	DisplayName string
-	Avatar      uint8
-	connection  *connection.Connection
-	server      *Server
-	pendingKill bool
-	killLock    sync.Mutex
+	DBID           uint64
+	MatchID        uint64
+	PublicID       string
+	DisplayName    string
+	Avatar         uint8
+	connection     *connection.Connection
+	server         *Server
+	pendingKill    bool
+	killLock       sync.Mutex
+	WaitingForMove bool
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
@@ -103,12 +104,13 @@ func NewClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname stri
 	connection := connection.NewConnection(wsconn)
 
 	return &GClient{
-		DBID:        dbid,
-		PublicID:    pid,
-		DisplayName: displayname,
-		MatchID:     matchID,
-		Avatar:      avatar,
-		connection:  connection,
-		server:      gameServer,
+		DBID:           dbid,
+		PublicID:       pid,
+		DisplayName:    displayname,
+		MatchID:        matchID,
+		Avatar:         avatar,
+		connection:     connection,
+		server:         gameServer,
+		WaitingForMove: false,
 	}
 }

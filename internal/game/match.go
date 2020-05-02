@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/6a/blade-ii-game-server/internal/apiinterface"
+
 	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
@@ -15,18 +17,18 @@ const clientDataDelimiter string = "."
 const payloadDelimiter string = ":"
 const debugGameID uint64 = 20
 const boltedCardOffset = 11
-const turnMaxWait = time.Millisecond * 21
+const turnMaxWait = time.Millisecond * 21000
+const tiedScoreAdditionalWait = time.Millisecond * 4500 // additional time to allow for clearing the field etc client side
 
 // Match is a wrapper for a matches data and client connections etc
 type Match struct {
-	ID          uint64
-	Client1     *GClient
-	Client2     *GClient
-	State       MatchState
-	Server      *Server
-	phaseLock   sync.Mutex
-	turnTimer   *time.Timer
-	timerTarget Player
+	ID        uint64
+	Client1   *GClient
+	Client2   *GClient
+	State     MatchState
+	Server    *Server
+	phaseLock sync.Mutex
+	turnTimer *time.Timer
 }
 
 // Tick reads any incoming messages and passes outgoing messages to the queue
@@ -36,6 +38,25 @@ func (match *Match) Tick() {
 
 	// Client 2
 	match.tickClient(match.Client2, match.Client1, Player2)
+
+	// Check for timeouts
+
+	if len(match.turnTimer.C) > 0 {
+		select {
+		case _ = <-match.turnTimer.C:
+			if match.Client1.WaitingForMove && match.Client2.WaitingForMove {
+				match.Server.Remove(match.Client1, protocol.WSCMatchMutualTimeout, "Both players timed out")
+			} else if match.Client1.WaitingForMove {
+				match.State.Winner = match.Client2.DBID
+				match.Server.Remove(match.Client1, protocol.WSCMatchTimeOut, "Player 1 timed out")
+			} else {
+				match.State.Winner = match.Client1.DBID
+				match.Server.Remove(match.Client2, protocol.WSCMatchTimeOut, "Player 2 timed out")
+			}
+
+			match.SetPhase(Finished)
+		}
+	}
 }
 
 // BroadCast sends the specified message to both clients
@@ -109,6 +130,18 @@ func (match *Match) SetMatchStart() {
 	// Update the local match state
 	match.SetPhase(Play)
 
+	// Start turn timers
+	var nextTurnPeriod time.Duration
+	if match.Client1.connection.Latency > match.Client2.connection.Latency {
+		nextTurnPeriod = turnMaxWait + match.Client1.connection.Latency
+	} else {
+		nextTurnPeriod = turnMaxWait + match.Client2.connection.Latency
+	}
+
+	match.turnTimer = time.NewTimer(nextTurnPeriod)
+	match.Client1.WaitingForMove = true
+	match.Client2.WaitingForMove = true
+
 	// Early exit if we are currently in the debug match (dont write to the db)
 	if match.ID == debugGameID {
 		return
@@ -142,8 +175,17 @@ func (match *Match) SetMatchResult() {
 			log.Printf("Failed to update match result: %s", err.Error())
 		}
 
-		// Update the MMR's
+		// Update match stats
+		var winner apiinterface.Winner
+		if match.State.Winner == match.Client1.DBID {
+			winner = apiinterface.Player1
+		} else if match.State.Winner == match.Client2.DBID {
+			winner = apiinterface.Player2
+		} else {
+			winner = apiinterface.Draw
+		}
 
+		apiinterface.UpdateMatchStats(match.Client1.DBID, match.Client2.DBID, winner)
 	}()
 }
 
@@ -187,19 +229,26 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 		message := client.connection.GetNextReceiveMessage()
 		if message.Type == protocol.Type(protocol.WSMTText) {
 			if message.Payload.Code == protocol.WSCMatchMove {
+				client.WaitingForMove = false
 				move, err := MoveFromString(message.Payload.Message)
 				if err == nil && match.isValidMove(move, player) {
 					// Update game state
-					match.updateGameState(player, move)
-
-					// Forward to other client
-					other.SendMessage(message)
+					if match.updateGameState(player, move) {
+						// Forward to other client
+						other.SendMessage(message)
+					} else {
+						// Remove the offending client (this will also end the game)
+						match.State.Winner = other.DBID
+						match.Server.Remove(client, protocol.WSCMatchIllegalMove, "")
+					}
 				} else {
 					// Remove the offending client (this will also end the game)
+					match.State.Winner = other.DBID
 					match.Server.Remove(client, protocol.WSCMatchIllegalMove, "")
 				}
 			} else if message.Type == protocol.Type(protocol.WSCMatchForfeit) {
 				// Remove the forfeiting client (this will also end the game)
+				match.State.Winner = other.DBID
 				match.Server.Remove(client, protocol.WSCMatchForfeit, "")
 			} else if message.Type == protocol.Type(protocol.WSCMatchRelayMessage) {
 				other.SendMessage(message)
@@ -210,107 +259,172 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 	}
 }
 
-func (match *Match) updateGameState(player Player, move Move) {
-	var targetHand []Card
-	var targetField []Card
-	// var targetDeck []Card
-	var targetDiscard []Card
+func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
+	var targetHand *[]Card
+	var targetField *[]Card
+	var targetDeck *[]Card
+	var targetDiscard *[]Card
 
-	var oppositeHand []Card
-	var oppositeField []Card
-	// var oppositeDeck []Card
-	var oppositeDiscard []Card
+	var oppositeHand *[]Card
+	var oppositeField *[]Card
+	var oppositeDiscard *[]Card
+
+	var updateTurn = false
 
 	if player == Player1 {
-		targetHand = match.State.Cards.Player1Hand
-		targetField = match.State.Cards.Player1Field
-		// targetDeck = match.State.Cards.Player1Deck
-		targetDiscard = match.State.Cards.Player1Discard
+		targetHand = &match.State.Cards.Player1Hand
+		targetField = &match.State.Cards.Player1Field
+		targetDeck = &match.State.Cards.Player1Deck
+		targetDiscard = &match.State.Cards.Player1Discard
 
-		oppositeHand = match.State.Cards.Player2Hand
-		oppositeField = match.State.Cards.Player2Field
-		// oppositeDeck = match.State.Cards.Player2Deck
-		oppositeDiscard = match.State.Cards.Player2Discard
+		oppositeHand = &match.State.Cards.Player2Hand
+		oppositeField = &match.State.Cards.Player2Field
+		oppositeDiscard = &match.State.Cards.Player2Discard
 	} else {
-		targetHand = match.State.Cards.Player2Hand
-		targetField = match.State.Cards.Player2Field
-		// targetDeck = match.State.Cards.Player2Deck
-		targetDiscard = match.State.Cards.Player2Discard
+		targetHand = &match.State.Cards.Player2Hand
+		targetField = &match.State.Cards.Player2Field
+		targetDeck = &match.State.Cards.Player2Deck
+		targetDiscard = &match.State.Cards.Player2Discard
 
-		oppositeHand = match.State.Cards.Player1Hand
-		oppositeField = match.State.Cards.Player1Field
-		// oppositeDeck = match.State.Cards.Player1Deck
-		oppositeDiscard = match.State.Cards.Player1Discard
+		oppositeHand = &match.State.Cards.Player1Hand
+		oppositeField = &match.State.Cards.Player1Field
+		oppositeDiscard = &match.State.Cards.Player1Discard
 	}
 
 	inCard := move.Instruction.ToCard()
-	if !removeFirstOfType(targetHand, inCard) {
-		// Early exit to bad move
-		return
-	}
 
-	usedRodEffect := inCard == ElliotsOrbalStaff && len(targetField) > 0 && isBolted(targetField[len(targetField)-1])
-	usedBoltEffect := inCard == Bolt && len(oppositeField) > 0 && !isBolted(oppositeField[len(oppositeField)-1])
-	usedMirrorEffect := inCard == Mirror && len(targetField) > 0 && len(oppositeField) > 0
-	usedBlastEffect := inCard == Blast && len(oppositeHand) > 0
-	usedNormalOrForceCard := !usedRodEffect && !usedBoltEffect && !usedMirrorEffect && !usedBlastEffect
-
-	// If the selected card was a normal or force card, and the target players latest field card is flipped (bolted) remove it
-	if usedNormalOrForceCard && len(targetField) > 0 && isBolted(targetField[len(targetField)-1]) {
-		removedCard := targetField[len(targetField)-1]
-
-		if !removeFirstOfType(targetField, removedCard) {
-			// Early exit to bad move
-			return
+	// Edge case - if we are waiting for draws from both player, we remove from the deck/hand onto the field
+	if match.State.Turn == PlayerUndecided {
+		if len(*targetDeck) > 0 {
+			if !removeLast(*targetDeck) {
+				return false
+			}
+		} else {
+			if !removeFirstOfType(*targetHand, inCard) {
+				return false
+			}
 		}
 
-		targetDiscard = append(targetDiscard, removedCard)
-	}
+		*targetField = append(*targetField, inCard)
 
-	if len(targetField) > 0 && !usedNormalOrForceCard {
-		if usedBlastEffect {
-			blastedCardInt, err := strconv.Atoi(move.Payload)
-			if err != nil {
-				// Early exit to bad move
-				return
-			}
-
-			blastedCard := Card(blastedCardInt)
-
-			if !removeFirstOfType(oppositeHand, blastedCard) {
-				// Early exit to bad move
-				return
-			}
-
-			oppositeDiscard = append(oppositeDiscard, blastedCard)
-
-		} else if usedRodEffect {
-			unBolt(targetField)
-		} else if usedBoltEffect {
-			bolt(oppositeField)
-		} else if usedMirrorEffect {
-			tempTargetField := targetField
-			targetField = oppositeField
-			oppositeField = tempTargetField
+		if player == Player1 {
+			match.Client1.WaitingForMove = false
+		} else {
+			match.Client2.WaitingForMove = false
 		}
 
-		targetDiscard = append(targetDiscard, inCard)
+		if len(*targetField) == 1 && len(*oppositeField) == 1 {
+			updateTurn = true
+		} else {
+			return true
+		}
 	} else {
-		targetField = append(targetField, inCard)
+		if !removeFirstOfType(*targetHand, inCard) {
+			return false
+		}
+
+		usedRodEffect := inCard == ElliotsOrbalStaff && len(*targetField) > 0 && isBolted((*targetField)[len(*targetField)-1])
+		usedBoltEffect := inCard == Bolt && len(*oppositeField) > 0 && !isBolted((*oppositeField)[len(*oppositeField)-1])
+		usedMirrorEffect := inCard == Mirror && len(*targetField) > 0 && len(*oppositeField) > 0
+		usedBlastEffect := inCard == Blast && len(*oppositeHand) > 0
+		usedNormalOrForceCard := !usedRodEffect && !usedBoltEffect && !usedMirrorEffect && !usedBlastEffect
+
+		// If the selected card was a normal or force card, and the target players latest field card is flipped (bolted) remove it
+		if usedNormalOrForceCard && len(*targetField) > 0 && isBolted((*targetField)[len(*targetField)-1]) {
+			removedCard := (*targetField)[len(*targetField)-1]
+
+			if !removeFirstOfType(*targetField, removedCard) {
+				return false
+			}
+
+			*targetDiscard = append(*targetDiscard, removedCard)
+		}
+
+		if len(*targetField) > 0 && !usedNormalOrForceCard {
+			if usedBlastEffect {
+				blastedCardInt, err := strconv.Atoi(move.Payload)
+				if err != nil {
+					return false
+				}
+
+				blastedCard := Card(blastedCardInt)
+
+				if !removeFirstOfType(*oppositeHand, blastedCard) {
+					return false
+				}
+
+				*oppositeDiscard = append(*oppositeDiscard, blastedCard)
+
+			} else if usedRodEffect {
+				unBolt(*targetField)
+			} else if usedBoltEffect {
+				bolt(*oppositeField)
+			} else if usedMirrorEffect {
+				tempTargetField := targetField
+				targetField = oppositeField
+				oppositeField = tempTargetField
+			}
+
+			*targetDiscard = append(*targetDiscard, inCard)
+		} else {
+			*targetField = append(*targetField, inCard)
+		}
+
+		// Set wait flags + turn (edge case for blast as the turn doesnt change)
+		if usedBlastEffect {
+			if match.State.Turn == Player1 {
+				match.Client1.WaitingForMove = true
+			} else {
+				match.Client2.WaitingForMove = true
+			}
+		} else {
+			updateTurn = true
+		}
 	}
 
 	match.State.Player1Score = calculateScore(match.State.Cards.Player1Field)
 	match.State.Player2Score = calculateScore(match.State.Cards.Player2Field)
 
-	if match.State.Player1Score == match.State.Player2Score {
-		match.State.Turn = PlayerUndecided
-	} else if match.State.Player1Score < match.State.Player2Score {
-		match.State.Turn = Player1
-	} else {
-		match.State.Turn = Player2
+	if updateTurn {
+		// Disable wait flags
+		match.Client1.WaitingForMove = false
+		match.Client2.WaitingForMove = false
+
+		if match.State.Player1Score == match.State.Player2Score {
+			match.State.Turn = PlayerUndecided
+			match.Client1.WaitingForMove = true
+			match.Client2.WaitingForMove = true
+
+			*targetDiscard = append(*targetDiscard, (*targetHand)...)
+			targetHand = nil
+
+			*oppositeDiscard = append(*oppositeDiscard, (*oppositeHand)...)
+			oppositeHand = nil
+
+		} else if match.State.Player1Score < match.State.Player2Score {
+			match.State.Turn = Player1
+			match.Client1.WaitingForMove = true
+		} else {
+			match.State.Turn = Player2
+			match.Client2.WaitingForMove = true
+		}
 	}
 
-	match.turnTimer = time.NewTimer(turnMaxWait)
+	var nextTurnPeriod time.Duration
+	if match.Client1.connection.Latency > match.Client2.connection.Latency {
+		nextTurnPeriod = turnMaxWait + match.Client1.connection.Latency
+	} else {
+		nextTurnPeriod = turnMaxWait + match.Client2.connection.Latency
+	}
+
+	if match.State.Player1Score == match.State.Player2Score {
+		nextTurnPeriod += tiedScoreAdditionalWait
+	}
+
+	match.turnTimer.Stop()
+	match.turnTimer.Reset(nextTurnPeriod)
+
+	return true
 }
 
 func isBolted(card Card) bool {

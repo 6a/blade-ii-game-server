@@ -24,3 +24,12 @@ func removeFirstOfType(cards []Card, toRemove Card) (success bool) {
 
 	return indexToRemove != -1
 }
+
+func removeLast(cards []Card) bool {
+	if len(cards) > 0 {
+		cards = cards[:len(cards)-1]
+		return true
+	}
+
+	return false
+}

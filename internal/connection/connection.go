@@ -113,8 +113,9 @@ func (connection *Connection) Close() error {
 // NewConnection creates a new connection
 func NewConnection(wsconn *websocket.Conn) *Connection {
 	connection := Connection{
-		WS:     wsconn,
-		Joined: time.Now(),
+		WS:      wsconn,
+		Joined:  time.Now(),
+		Latency: time.Second * 0,
 	}
 
 	connection.init()

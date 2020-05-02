@@ -52,4 +52,9 @@ const (
 	WSCMatchMove                B2Code = 413
 	WSCMatchData                B2Code = 414
 	WSCMatchForfeit             B2Code = 415
+	WSCMatchMutualTimeout       B2Code = 416
+	WSCMatchTimeOut             B2Code = 417
+	WSCMatchWin                 B2Code = 418
+	WSCMatchDraw                B2Code = 419
+	WSCMatchLoss                B2Code = 420
 )
