@@ -110,26 +110,6 @@ func InitialiseCards(inCards Cards, drawsUntilValid uint) (outCards Cards) {
 	reverseCardArray(outCards.Player2Hand)
 	outCards.Player2Deck = outCards.Player2Deck[:postInitialisationDeckSize]
 
-	// if drawsUntilValid > 1 {
-	// 	// Player 1 deck to player 1 discard
-	// 	p1Index := uint(len(outCards.Player1Deck)) - (drawsUntilValid - 2) - 1
-	// 	outCards.Player1Discard = outCards.Player1Deck[p1Index:]
-	// 	outCards.Player1Deck = outCards.Player1Deck[:p1Index]
-
-	// 	// Player 2 deck to player 2 discard
-	// 	p2Index := uint(len(outCards.Player2Deck)) - (drawsUntilValid - 2) - 1
-	// 	outCards.Player2Discard = outCards.Player2Deck[p2Index:]
-	// 	outCards.Player2Deck = outCards.Player2Deck[:p2Index]
-	// }
-
-	// // Player 1 deck to player 1 field
-	// outCards.Player1Field = outCards.Player1Deck[len(outCards.Player1Deck)-1:]
-	// outCards.Player1Deck = outCards.Player1Deck[:len(outCards.Player1Deck)-1]
-
-	// // Player 2 deck to player 2 field
-	// outCards.Player2Field = outCards.Player2Deck[len(outCards.Player2Deck)-1:]
-	// outCards.Player2Deck = outCards.Player2Deck[:len(outCards.Player2Deck)-1]
-
 	return outCards
 }
 
@@ -242,14 +222,4 @@ func validFirstMoveAvailable(cardSet []Card, cardToBeatOrMatch Card, currentScor
 	}
 
 	return false
-}
-
-func containsOnlyEffectCards(cardSet []Card) bool {
-	for i := 0; i < len(cardSet); i++ {
-		if cardSet[i] < Bolt {
-			return false
-		}
-	}
-
-	return true
 }

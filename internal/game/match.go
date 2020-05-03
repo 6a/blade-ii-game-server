@@ -234,9 +234,25 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 				move, err := MoveFromString(message.Payload.Message)
 				if err == nil && match.isValidMove(move, player) {
 					// Update game state
-					if match.updateGameState(player, move) {
+
+					valid, matchEnded, winner := match.updateGameState(player, move)
+					if valid {
 						// Forward to other client
 						other.SendMessage(message)
+
+						if matchEnded {
+							if winner == Player1 {
+								match.State.Winner = match.Client1.DBID
+								match.Server.Remove(match.Client1, protocol.WSCMatchWin, "")
+							} else if winner == Player2 {
+								match.State.Winner = match.Client2.DBID
+								match.Server.Remove(match.Client2, protocol.WSCMatchWin, "")
+							} else {
+								match.Server.Remove(match.Client1, protocol.WSCMatchDraw, "")
+							}
+
+							match.SetPhase(Finished)
+						}
 					} else {
 						// Remove the offending client (this will also end the game)
 						match.State.Winner = other.DBID
@@ -260,7 +276,7 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 	}
 }
 
-func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
+func (match *Match) updateGameState(player Player, move Move) (validMove bool, matchEnded bool, winner Player) {
 	var targetHand *[]Card
 	var targetField *[]Card
 	var targetDeck *[]Card
@@ -301,11 +317,11 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 	if match.State.Turn == PlayerUndecided {
 		if len(*targetDeck) > 0 {
 			if !removeLast(*targetDeck) {
-				return false
+				return false, false, PlayerUndecided
 			}
 		} else {
 			if !removeFirstOfType(*targetHand, inCard) {
-				return false
+				return false, false, PlayerUndecided
 			}
 		}
 
@@ -320,25 +336,25 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 		if len(*targetField) == 1 && len(*oppositeField) == 1 {
 			updateTurn = true
 		} else {
-			return true
+			return true, false, PlayerUndecided
 		}
 	} else {
 		if !removeFirstOfType(*targetHand, inCard) {
-			return false
+			return false, false, PlayerUndecided
 		}
 
-		usedRodEffect := inCard == ElliotsOrbalStaff && len(*targetField) > 0 && isBolted((*targetField)[len(*targetField)-1])
-		usedBoltEffect := inCard == Bolt && len(*oppositeField) > 0 && !isBolted((*oppositeField)[len(*oppositeField)-1])
+		usedRodEffect := inCard == ElliotsOrbalStaff && len(*targetField) > 0 && isBolted(last(*targetField))
+		usedBoltEffect := inCard == Bolt && len(*oppositeField) > 0 && !isBolted(last(*oppositeField))
 		usedMirrorEffect := inCard == Mirror && len(*targetField) > 0 && len(*oppositeField) > 0
 		usedBlastEffect = inCard == Blast && len(*oppositeHand) > 0
 		usedNormalOrForceCard := !usedRodEffect && !usedBoltEffect && !usedMirrorEffect && !usedBlastEffect
 
 		// If the selected card was a normal or force card, and the target players latest field card is flipped (bolted) remove it
-		if usedNormalOrForceCard && len(*targetField) > 0 && isBolted((*targetField)[len(*targetField)-1]) {
-			removedCard := (*targetField)[len(*targetField)-1]
+		if usedNormalOrForceCard && len(*targetField) > 0 && isBolted(last(*targetField)) {
+			removedCard := last(*targetField)
 
 			if !removeFirstOfType(*targetField, removedCard) {
-				return false
+				return false, false, PlayerUndecided
 			}
 
 			*targetDiscard = append(*targetDiscard, removedCard)
@@ -348,13 +364,13 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 			if usedBlastEffect {
 				blastedCardInt, err := strconv.Atoi(move.Payload)
 				if err != nil {
-					return false
+					return false, false, PlayerUndecided
 				}
 
 				blastedCard := Card(blastedCardInt)
 
 				if !removeFirstOfType(*oppositeHand, blastedCard) {
-					return false
+					return false, false, PlayerUndecided
 				}
 
 				*oppositeDiscard = append(*oppositeDiscard, blastedCard)
@@ -388,6 +404,11 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 
 	match.State.Player1Score = calculateScore(match.State.Cards.Player1Field)
 	match.State.Player2Score = calculateScore(match.State.Cards.Player2Field)
+
+	matchEnded, winner = match.checkForMatchEnd(usedBlastEffect)
+	if matchEnded {
+		return true, matchEnded, winner
+	}
 
 	if updateTurn {
 		// Disable wait flags
@@ -430,7 +451,133 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool) {
 	match.turnTimer.Stop()
 	match.turnTimer.Reset(nextTurnPeriod)
 
-	return true
+	return true, false, PlayerUndecided
+}
+
+func (match *Match) checkForMatchEnd(usedBlastEffect bool) (matchEnded bool, player Player) {
+	if match.isDrawn() {
+		return true, PlayerUndecided
+	}
+
+	if match.playerHasWon(Player1, usedBlastEffect) {
+		return true, Player1
+	} else if match.playerHasWon(Player2, usedBlastEffect) {
+		return true, Player2
+	}
+
+	return false, PlayerUndecided
+}
+
+func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
+	var targetPlayerScore uint16
+	var targetField []Card
+
+	var oppositePlayerScore uint16
+	var oppositePlayerHand []Card
+	var oppositePlayerField []Card
+
+	var oppositePlayerDeckCount int
+	var isOppositePlayersTurn bool
+
+	if match.State.Turn == player {
+		isOppositePlayersTurn = false
+	} else {
+		isOppositePlayersTurn = false
+	}
+
+	if player == Player1 {
+		targetPlayerScore = match.State.Player1Score
+		targetField = match.State.Cards.Player1Field
+
+		oppositePlayerScore = match.State.Player2Score
+		oppositePlayerHand = match.State.Cards.Player2Hand
+		oppositePlayerField = match.State.Cards.Player2Field
+		oppositePlayerDeckCount = len(match.State.Cards.Player2Deck)
+
+	} else if player == Player2 {
+		targetPlayerScore = match.State.Player2Score
+		targetField = match.State.Cards.Player2Field
+
+		oppositePlayerScore = match.State.Player1Score
+		oppositePlayerHand = match.State.Cards.Player1Hand
+		oppositePlayerField = match.State.Cards.Player1Field
+		oppositePlayerDeckCount = len(match.State.Cards.Player1Deck)
+	} else {
+		return false
+	}
+
+	if len(oppositePlayerHand) > 0 && containsOnlyEffectCards(oppositePlayerHand) {
+		return true
+	}
+
+	if targetPlayerScore == oppositePlayerScore {
+		if oppositePlayerDeckCount+len(oppositePlayerHand) == 0 {
+			return true
+		}
+	}
+
+	if targetPlayerScore > oppositePlayerScore {
+		scoreGap := targetPlayerScore - oppositePlayerScore
+
+		if isOppositePlayersTurn && !usedBlastEffect {
+			return true
+		}
+
+		if len(oppositePlayerHand) == 0 {
+			return true
+		}
+
+		if canBeatScore(oppositePlayerHand, scoreGap) {
+			return false
+		}
+
+		if contains(oppositePlayerHand, ElliotsOrbalStaff) {
+			if len(oppositePlayerField) > 0 && isBolted(last(oppositePlayerField)) {
+				if last(oppositePlayerField) == InactiveForce {
+					if oppositePlayerScore*2 >= targetPlayerScore {
+						return false
+					}
+				} else if uint16(getBoltedCardrealValue(last(oppositePlayerField))) >= scoreGap {
+					return false
+				}
+			}
+		}
+
+		if contains(oppositePlayerHand, Bolt) {
+			if len(targetField) > 0 && !isBolted(last(targetField)) {
+				return false
+			}
+		}
+
+		if contains(oppositePlayerHand, Mirror) {
+			return false
+		}
+
+		if contains(oppositePlayerHand, Blast) {
+			return false
+		}
+
+		if contains(oppositePlayerHand, Force) {
+			if oppositePlayerScore*2 > targetPlayerScore {
+				return false
+			}
+		}
+
+	}
+
+	return false
+}
+
+func (match *Match) isDrawn() bool {
+	if len(match.State.Cards.Player1Deck)+len(match.State.Cards.Player2Deck) == 0 {
+		if len(match.State.Cards.Player1Hand)+len(match.State.Cards.Player2Hand) == 0 {
+			if match.State.Player1Score == match.State.Player2Score {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func isBolted(card Card) bool {
@@ -439,18 +586,26 @@ func isBolted(card Card) bool {
 
 func bolt(targetField []Card) {
 	if len(targetField) > 0 {
-		if targetField[len(targetField)-1] <= Force {
-			targetField[len(targetField)-1] = Card(uint8(targetField[len(targetField)-1]) + boltedCardOffset)
+		if last(targetField) <= Force {
+			targetField[len(targetField)-1] = Card(uint8(last(targetField)) + boltedCardOffset)
 		}
 	}
 }
 
 func unBolt(targetField []Card) {
 	if len(targetField) > 0 {
-		if targetField[len(targetField)-1] >= InactiveElliotsOrbalStaff {
-			targetField[len(targetField)-1] = Card(uint8(targetField[len(targetField)-1]) - boltedCardOffset)
+		if last(targetField) >= InactiveElliotsOrbalStaff {
+			targetField[len(targetField)-1] = Card(uint8(last(targetField)) - boltedCardOffset)
 		}
 	}
+}
+
+func getBoltedCardrealValue(card Card) uint8 {
+	if card > Force {
+		card = Card(card - 11)
+	}
+
+	return card.Value()
 }
 
 func calculateScore(targetCards []Card) uint16 {

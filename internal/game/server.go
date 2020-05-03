@@ -182,6 +182,25 @@ func (gs *Server) handleUnregisterQueue() {
 					otherMessage = "Opponent timed out"
 
 					match.SetMatchResult()
+				} else if req.Reason == protocol.WSCMatchWin {
+					initiatorReason = protocol.WSCMatchWin
+					initiatorMessage = "Victory"
+
+					otherReason = protocol.WSCMatchLoss
+					otherMessage = "Defeat"
+
+					match.SetMatchResult()
+				} else if req.Reason == protocol.WSCMatchDraw {
+					initiatorReason = protocol.WSCMatchDraw
+					initiatorMessage = "Draw"
+
+					otherReason = protocol.WSCMatchDraw
+					otherMessage = "Draw"
+
+					match.SetMatchResult()
+				} else if req.Reason == protocol.WSCMatchLoss {
+					// Note that this should never be reached - to declare a loss, simply declare the winner instead
+					log.Panicf("Don't set the reason to loss - rather, set win for the winning client instead")
 				} else {
 					initiatorReason = req.Reason
 					initiatorMessage = req.Message

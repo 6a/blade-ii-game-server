@@ -33,3 +33,41 @@ func removeLast(cards []Card) bool {
 
 	return false
 }
+
+func containsOnlyEffectCards(cardSet []Card) bool {
+	for i := 0; i < len(cardSet); i++ {
+		if cardSet[i] < Bolt {
+			return false
+		}
+	}
+
+	return true
+}
+
+func canBeatScore(cardSet []Card, scoreToBeat uint16) bool {
+	for i := 0; i < len(cardSet); i++ {
+		if uint16(cardSet[i].Value()) >= scoreToBeat {
+			return true
+		}
+	}
+
+	return false
+}
+
+func contains(cardSet []Card, cardToCheck Card) bool {
+	for i := 0; i < len(cardSet); i++ {
+		if cardSet[i] == cardToCheck {
+			return true
+		}
+	}
+
+	return false
+}
+
+func last(cardSet []Card) Card {
+	if len(cardSet) > 0 {
+		return cardSet[len(cardSet)-1]
+	}
+
+	return ElliotsOrbalStaff
+}
