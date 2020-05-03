@@ -7,27 +7,27 @@ func reverseCardArray(inArray []Card) {
 	}
 }
 
-func removeFirstOfType(cards []Card, toRemove Card) (success bool) {
+func removeFirstOfType(cards *[]Card, toRemove Card) (success bool) {
 	var indexToRemove = -1
 
-	for i := 0; i < len(cards); i++ {
-		if cards[i] == toRemove {
+	for i := 0; i < len(*cards); i++ {
+		if (*cards)[i] == toRemove {
 			indexToRemove = i
 			break
 		}
 	}
 
 	if indexToRemove != -1 {
-		cards[indexToRemove] = cards[len(cards)-1]
-		cards = cards[:len(cards)-1]
+		(*cards)[indexToRemove] = last(*cards)
+		removeLast(cards)
 	}
 
 	return indexToRemove != -1
 }
 
-func removeLast(cards []Card) bool {
-	if len(cards) > 0 {
-		cards = cards[:len(cards)-1]
+func removeLast(cards *[]Card) bool {
+	if len(*cards) > 0 {
+		*cards = (*cards)[:len(*cards)-1]
 		return true
 	}
 
@@ -70,4 +70,38 @@ func last(cardSet []Card) Card {
 	}
 
 	return ElliotsOrbalStaff
+}
+
+func bolt(targetField *[]Card) {
+	if len(*targetField) > 0 {
+		if last(*targetField) <= Force {
+			(*targetField)[len(*targetField)-1] = Card(uint8(last(*targetField)) + boltedCardOffset)
+		}
+	}
+}
+
+func unBolt(targetField *[]Card) {
+	if len(*targetField) > 0 {
+		if last(*targetField) >= InactiveElliotsOrbalStaff {
+			(*targetField)[len(*targetField)-1] = Card(uint8(last(*targetField)) - boltedCardOffset)
+		}
+	}
+}
+
+func calculateScore(targetCards []Card) uint16 {
+	var total uint16 = 0
+
+	for i := 0; i < len(targetCards); i++ {
+		card := targetCards[i]
+
+		if !isBolted(card) {
+			if card == Force && i > 0 {
+				total *= 2
+			} else {
+				total += uint16(card.Value())
+			}
+		}
+	}
+
+	return total
 }
