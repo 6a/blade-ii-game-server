@@ -405,9 +405,11 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool, m
 	match.State.Player1Score = calculateScore(match.State.Cards.Player1Field)
 	match.State.Player2Score = calculateScore(match.State.Cards.Player2Field)
 
-	matchEnded, winner = match.checkForMatchEnd(usedBlastEffect)
-	if matchEnded {
-		return true, matchEnded, winner
+	if match.State.Turn != PlayerUndecided {
+		matchEnded, winner = match.checkForMatchEnd(usedBlastEffect)
+		if matchEnded {
+			return true, matchEnded, winner
+		}
 	}
 
 	if updateTurn {
