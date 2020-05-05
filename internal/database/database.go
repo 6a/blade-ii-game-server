@@ -113,7 +113,7 @@ func ValidateMatch(userID uint64, matchID uint64) (valid bool, err error) {
 	defer statement.Close()
 
 	var found bool
-	err = statement.QueryRow(matchID, userID, userID).Scan(&found)
+	err = statement.QueryRow(matchID, userID).Scan(&found)
 	if err == sql.ErrNoRows {
 		return false, errors.New("Invalid - either the match does not exist, or the specified client is not part of it")
 	} else if err != nil {
