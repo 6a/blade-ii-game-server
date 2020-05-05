@@ -24,7 +24,7 @@ func (p *PreparedStatements) Construct(envvars *EnvironmentVariables) {
 	p.GetAuthExpiry = fmt.Sprintf("SELECT `auth_expiry` FROM `%v`.`%v` WHERE `id` = ? AND `auth` = ?;", envvars.DBName, envvars.TableTokens)
 	p.GetMMR = fmt.Sprintf("SELECT `mmr` FROM `%v`.`%v` WHERE `id` = ?;", envvars.DBName, envvars.TableProfiles)
 	p.CreateMatch = fmt.Sprintf("INSERT INTO `%v`.`%v` (`player1`, `player2`) VALUES (?, ?);", envvars.DBName, envvars.TableMatches)
-	p.CheckMatchValid = fmt.Sprintf("SELECT EXISTS (SELECT * FROM `%v`.`%v` WHERE `id` = ? AND `phase` = 0 AND (`player1` = ? OR `player2` = ?));", envvars.DBName, envvars.TableMatches)
+	p.CheckMatchValid = fmt.Sprintf("SELECT EXISTS (SELECT * FROM `%v`.`%v` WHERE `id` = ? AND `phase` = 0 AND ? IN(`player1`, `player2`));", envvars.DBName, envvars.TableMatches)
 	p.GetDisplayName = fmt.Sprintf("SELECT `handle` FROM `%v`.`%v` WHERE `id` = ?;", envvars.DBName, envvars.TableUsers)
 	p.GetAvatar = fmt.Sprintf("SELECT `avatar` FROM `%v`.`%v` WHERE `id` = ?;", envvars.DBName, envvars.TableProfiles)
 	p.SetMatchStart = fmt.Sprintf("UPDATE `%v`.`%v` SET `phase` = 1, `start` = NOW() WHERE `id` = ?;", envvars.DBName, envvars.TableMatches)
