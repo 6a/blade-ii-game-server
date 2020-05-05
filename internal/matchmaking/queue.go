@@ -16,7 +16,7 @@ const BufferSize = 32
 const readyCheckTime = time.Second * 5
 
 // How frequently to update the matchmaking queue (minimum wait between iterations)
-const pollTime = 1000 * time.Millisecond
+const pollTime = 500 * time.Millisecond
 
 // Queue is a wrapper for the matchmaking queue
 type Queue struct {
@@ -86,7 +86,7 @@ func (queue *Queue) MainLoop() {
 
 			if client, ok := queue.clients[removalIndex]; ok {
 				deletedClientPID := client.PublicID
-				go client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
+				client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
 				delete(queue.clients, removalIndex)
 
 				// Remove from the queue index (slice)
@@ -168,6 +168,7 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) (finished bool) {
 			} else {
 				clientPair.C1.IsReadyChecking = false
 				clientPair.C1.Ready = false
+				clientPair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCOpponentDidNotAccept, ""))
 			}
 
 			if !client2ReadyValid {
@@ -175,6 +176,7 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) (finished bool) {
 			} else {
 				clientPair.C2.IsReadyChecking = false
 				clientPair.C2.Ready = false
+				clientPair.C2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCOpponentDidNotAccept, ""))
 			}
 
 			return true
@@ -190,6 +192,14 @@ func (queue *Queue) pollReadyCheck(clientPair ClientPair) (finished bool) {
 		queue.Remove(clientPair.C1, protocol.WSCNone, "Match found - closing connection")
 		queue.Remove(clientPair.C2, protocol.WSCNone, "Match found - closing connection")
 		return true
+	} else if client1ReadyValid != client2ReadyValid {
+		if client1ReadyValid && !clientPair.C1.OpponentReady {
+			clientPair.C1.OpponentReady = true
+			clientPair.C2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCOpponentAccepted, ""))
+		} else if client2ReadyValid && !clientPair.C2.OpponentReady {
+			clientPair.C2.OpponentReady = true
+			clientPair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCOpponentAccepted, ""))
+		}
 	}
 
 	return false

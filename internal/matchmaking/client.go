@@ -24,6 +24,7 @@ type MMClient struct {
 	queue           *Queue
 	PendingKill     bool
 	killLock        sync.Mutex
+	OpponentReady   bool
 }
 
 // StartEventLoop is the event loop for this client (sends/receives messages)
@@ -36,12 +37,12 @@ func (client *MMClient) pollReceive() {
 	for {
 		err := client.connection.ReadMessage()
 
-		if client.isPendingKill() {
+		if err != nil {
+			client.queue.Remove(client, protocol.WSCUnknownConnectionError, err.Error())
 			break
 		}
 
-		if err != nil {
-			client.queue.Remove(client, protocol.WSCUnknownConnectionError, err.Error())
+		if client.isPendingKill() {
 			break
 		}
 	}
@@ -51,13 +52,13 @@ func (client *MMClient) pollSend() {
 	for {
 		message := client.connection.GetNextSendMessage()
 
-		if client.isPendingKill() {
-			break
-		}
-
 		err := client.connection.WriteMessage(message)
 		if err != nil {
 			client.queue.Remove(client, protocol.WSCUnknownConnectionError, err.Error())
+			break
+		}
+
+		if client.isPendingKill() {
 			break
 		}
 	}
@@ -69,7 +70,7 @@ func (client *MMClient) Tick() {
 	for len(client.connection.ReceiveQueue) > 0 {
 		message := client.connection.GetNextReceiveMessage()
 
-		if message.Payload.Code == protocol.WSCMatchMakingReady {
+		if message.Payload.Code == protocol.WSCMatchMakingAccept {
 			client.Ready = true
 			client.ReadyTime = time.Now()
 		}
@@ -89,8 +90,10 @@ func (client *MMClient) Close(message protocol.Message) {
 
 	client.SendMessage(message)
 
-	time.Sleep(closeWaitPeriod)
-	client.connection.WS.Close()
+	go func() {
+		time.Sleep(closeWaitPeriod)
+		client.connection.WS.Close()
+	}()
 }
 
 func (client *MMClient) isPendingKill() bool {

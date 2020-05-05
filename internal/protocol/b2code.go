@@ -19,19 +19,21 @@ const (
 	WSCAuthBadCredentials B2Code = 202
 	WSCAuthExpired        B2Code = 203
 	WSCAuthBanned         B2Code = 204
-	WSCAuthReceived       B2Code = 205
-	WSCAuthExpected       B2Code = 206
-	WSCAuthNotReceived    B2Code = 207
+	WSCAuthExpected       B2Code = 205
+	WSCAuthNotReceived    B2Code = 206
+	WSCAuthReceived       B2Code = 207
 	WSCAuthSuccess        B2Code = 208
 )
 
 // MatchMaking
 const (
 	WSCMatchMakingGameFound B2Code = 300
-	WSCMatchMakingReady     B2Code = 301
+	WSCMatchMakingAccept    B2Code = 301
 	WSCMatchConfirmed       B2Code = 302
 	WSCReadyCheckFailed     B2Code = 303
 	WSCJoinedQueue          B2Code = 304
+	WSCOpponentAccepted     B2Code = 305
+	WSCOpponentDidNotAccept B2Code = 306
 )
 
 // Match
