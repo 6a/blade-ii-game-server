@@ -520,6 +520,12 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 		}
 	}
 
+	if usedBlastEffect {
+		if len(oppositePlayerHand) == 0 {
+			return true
+		}
+	}
+
 	if targetPlayerScore > oppositePlayerScore {
 		scoreGap := targetPlayerScore - oppositePlayerScore
 
