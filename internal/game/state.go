@@ -2,7 +2,7 @@
 // Use of this source code is governed by the MIT license
 // that can be found in the LICENSE.md file.
 
-// Package game provides implements the Blade II Online game server.
+// Package game implements the Blade II Online game server.
 package game
 
 // Player is a typedef for the two different players
