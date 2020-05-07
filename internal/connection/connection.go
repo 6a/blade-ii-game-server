@@ -2,7 +2,7 @@
 // Use of this source code is governed by the MIT license
 // that can be found in the LICENSE.md file.
 
-// Package connection impliments a websocket connection wrapper with various helper functions.
+// Package connection implements a websocket connection wrapper with various helper functions.
 package connection
 
 import (
