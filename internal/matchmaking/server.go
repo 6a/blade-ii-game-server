@@ -24,5 +24,6 @@ func (ms *Server) Init() {
 // NewServer creates a new matchmaking server
 func NewServer() *Server {
 	ms := Server{}
+	ms.Init()
 	return &ms
 }

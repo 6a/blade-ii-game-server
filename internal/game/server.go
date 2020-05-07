@@ -255,5 +255,6 @@ func (gs *Server) Init() {
 // NewServer creates a new game server
 func NewServer() *Server {
 	gs := Server{}
+	gs.Init()
 	return &gs
 }

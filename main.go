@@ -14,22 +14,22 @@ import (
 const address = "localhost:20000"
 
 func main() {
-	// Init database connection
+	// Initialise the database module
 	database.Init()
 
-	// Game server
+	// Create and initialise an instance of the game server
 	gameServer := game.NewServer()
-	gameServer.Init()
 
+	// Set up the game server http handler
 	routes.SetupGameServer(gameServer)
 
-	// Matchmaking server
+	// Create and initialise instance of the matchmaking server
 	matchmakingServer := matchmaking.NewServer()
-	matchmakingServer.Init()
 
+	// Set up the matchmaking server http handler
 	routes.SetupMatchMaking(matchmakingServer)
 
-	// Serve
+	// Start the http server - the log.Fatal wrapper ensures that any exceptions will cause a clean exit with a proper exit code
 	log.Printf("Blade II Online Gameserver listening on: %v", address)
 	log.Fatal(http.ListenAndServe(address, nil))
 }
