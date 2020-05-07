@@ -13,9 +13,6 @@ import (
 )
 
 const address = "localhost:20000"
-const addressFlag = "address"
-
-var addr = flag.String(addressFlag, address, "Service Address")
 
 func main() {
 	flag.Parse()
@@ -38,5 +35,5 @@ func main() {
 
 	// Serve
 	log.Printf("Blade II Online Gameserver listening on: %v", address)
-	log.Fatal(http.ListenAndServe(*addr, nil))
+	log.Fatal(http.ListenAndServe(address, nil))
 }
