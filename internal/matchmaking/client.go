@@ -50,7 +50,7 @@ func (client *MMClient) pollReceive() {
 
 func (client *MMClient) pollSend() {
 	for {
-		message := client.connection.GetNextSendMessage()
+		message := client.connection.GetNextOutboundMessage()
 
 		err := client.connection.WriteMessage(message)
 		if err != nil {
