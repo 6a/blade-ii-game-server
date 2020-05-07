@@ -5,6 +5,9 @@
 // Package game provides implements the Blade II Online game server.
 package game
 
+// boltedCardOffset is the difference between an unbolted card, and its bolted counterpart.
+const boltedCardOffset uint8 = 11
+
 // reverseCardArray reverses a Card array in place. This modified the underlying
 // data for the specified array, so two variables pointing to the same data
 // would, for example, have their data modified.

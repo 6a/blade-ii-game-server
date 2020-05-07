@@ -109,9 +109,9 @@ func (connection *Connection) SendMessage(message protocol.Message) {
 	connection.OutboundMessageQueue <- message
 }
 
-// GetNextReceiveMessage gets the next message from the inbound message queue.
+// GetNextInboundMessage gets the next message from the inbound message queue.
 // Blocks when the queue is empty, so check the queue's length if you don't want to wait.
-func (connection *Connection) GetNextReceiveMessage() protocol.Message {
+func (connection *Connection) GetNextInboundMessage() protocol.Message {
 
 	// Deqeue and return the message.
 	return <-connection.InboundMessageQueue

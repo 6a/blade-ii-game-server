@@ -10,7 +10,7 @@ import (
 )
 
 // BufferSize is the size of each message queue's buffer
-const BufferSize = 32
+const BufferSize = 256
 
 // readyCheckTime is how long to wait when a ready check is sent
 const readyCheckTime = time.Second * 20
@@ -23,8 +23,8 @@ type Queue struct {
 	index        []uint64
 	nextIndex    uint64
 	clients      map[uint64]*MMClient
-	register     chan *MMClient
-	unregister   chan UnregisterRequest
+	connect      chan *MMClient
+	disconnect   chan UnregisterRequest
 	broadcast    chan protocol.Message
 	commands     chan protocol.Command
 	matchedPairs []ClientPair
@@ -34,8 +34,8 @@ type Queue struct {
 func (queue *Queue) Start() {
 	queue.index = make([]uint64, 0)
 	queue.clients = make(map[uint64]*MMClient)
-	queue.register = make(chan *MMClient, BufferSize)
-	queue.unregister = make(chan UnregisterRequest, BufferSize)
+	queue.connect = make(chan *MMClient, BufferSize)
+	queue.disconnect = make(chan UnregisterRequest, BufferSize)
 	queue.broadcast = make(chan protocol.Message, BufferSize)
 	queue.commands = make(chan protocol.Command, BufferSize)
 	queue.matchedPairs = make([]ClientPair, 0)
@@ -50,9 +50,9 @@ func (queue *Queue) MainLoop() {
 
 		// Perform all pending tasks
 		toRemove := make([]UnregisterRequest, 0)
-		for len(queue.register)+len(queue.unregister)+len(queue.broadcast)+len(queue.commands) > 0 {
+		for len(queue.connect)+len(queue.disconnect)+len(queue.broadcast)+len(queue.commands) > 0 {
 			select {
-			case client := <-queue.register:
+			case client := <-queue.connect:
 				queue.clients[queue.nextIndex] = client
 				client.QueueID = queue.nextIndex
 				queue.index = append(queue.index, queue.nextIndex)
@@ -60,7 +60,7 @@ func (queue *Queue) MainLoop() {
 				log.Printf("Client [%s] joined the matchmaking queue. Total clients: %v", client.PublicID, len(queue.clients))
 				client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCJoinedQueue, "Added to matchmaking queue"))
 				break
-			case clientid := <-queue.unregister:
+			case clientid := <-queue.disconnect:
 				toRemove = append(toRemove, clientid)
 				break
 			case message := <-queue.broadcast:
@@ -139,12 +139,12 @@ func (queue *Queue) MainLoop() {
 
 // Add a client to the register queue, to be added next cycle
 func (queue *Queue) Add(client *MMClient) {
-	queue.register <- client
+	queue.connect <- client
 }
 
 // Remove adds a client to the unregister queue, to be removed next cycle
 func (queue *Queue) Remove(client *MMClient, reason protocol.B2Code, message string) {
-	queue.unregister <- UnregisterRequest{
+	queue.disconnect <- UnregisterRequest{
 		clientID: client.QueueID,
 		Reason:   reason,
 		Message:  message,

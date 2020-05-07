@@ -9,9 +9,16 @@ import (
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
 
-// UnregisterRequest is a wrapper for the information required to remove a client from the queue
-type UnregisterRequest struct {
-	Client  *GClient
-	Reason  protocol.B2Code
+// DisconnectRequest is a wrapper for the information required to remove a client from the game server.
+type DisconnectRequest struct {
+
+	// A pointer to the client to remove.
+	Client *GClient
+
+	// The reason for removal.
+	Reason protocol.B2Code
+
+	// An optional to be sent, either to just the player, or both, depending on whether they are
+	// in a match, and the state of the match etc..
 	Message string
 }

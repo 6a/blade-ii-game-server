@@ -149,12 +149,13 @@ func (client *GClient) isPendingKill() bool {
 	client.killLock.Lock()
 	defer client.killLock.Unlock()
 
-	// return the value of pendingKill. After the function exits, the lock will be
+	// Return the value of pendingKill. After the function exits, the lock will be
 	// released.
 	return client.pendingKill
 }
 
-// NewClient creates a new Client and starts its message pumps in two seperate go routines.
+// NewClient creates a and retruns a pointer to a new Client, and starts its
+// message pumps in two seperate go routines.
 func NewClient(wsconn *websocket.Conn, databaseID uint64, publicID string, displayname string, matchID uint64, avatar uint8, gameServer *Server) *GClient {
 	connection := connection.NewConnection(wsconn)
 	client := &GClient{

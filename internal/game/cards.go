@@ -127,10 +127,10 @@ func GenerateCards() (cards Cards) {
 	return cards
 }
 
-// InitialiseCards simulates the first moves of the game until a playable state is reached.
+// InitializeCards simulates the first moves of the game until a playable state is reached.
 //
 // Returns a COPY of the input cards.
-func InitialiseCards(inCards Cards) (outCards Cards) {
+func InitializeCards(inCards Cards) (outCards Cards) {
 
 	// Make a copy of the the input so that the original cards object is not modified.
 	// While the parameter is passed as a copy, it contains arrays which must be deep copied.
