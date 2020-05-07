@@ -11,26 +11,26 @@ import (
 	"github.com/6a/blade-ii-game-server/internal/routes"
 )
 
-// address is the local address:port that this server will be available on
+// address is the local address:port that this server will be available on,
 const address = "localhost:20000"
 
 func main() {
-	// Initialise the database module
+	// Initialise the database module.
 	database.Init()
 
-	// Create and initialise an instance of the game server
+	// Create and initialise an instance of the game server.
 	gameServer := game.NewServer()
 
-	// Set up the game server http handler
+	// Set up the game server http handler.
 	routes.SetupGameServer(gameServer)
 
-	// Create and initialise instance of the matchmaking server
+	// Create and initialise instance of the matchmaking server.
 	matchmakingServer := matchmaking.NewServer()
 
-	// Set up the matchmaking server http handler
+	// Set up the matchmaking server http handler.
 	routes.SetupMatchMaking(matchmakingServer)
 
-	// Start the http server - the log.Fatal wrapper ensures that any exceptions will cause a clean exit with a proper exit code
+	// Start the http server - the log.Fatal wrapper ensures that any exceptions will cause a clean exit with a proper exit code.
 	log.Printf("Blade II Online Gameserver listening on: %v", address)
 	log.Fatal(http.ListenAndServe(address, nil))
 }
