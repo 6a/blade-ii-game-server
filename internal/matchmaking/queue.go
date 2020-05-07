@@ -13,7 +13,7 @@ import (
 const BufferSize = 32
 
 // readyCheckTime is how long to wait when a ready check is sent
-const readyCheckTime = time.Second * 5
+const readyCheckTime = time.Second * 20
 
 // How frequently to update the matchmaking queue (minimum wait between iterations)
 const pollTime = 500 * time.Millisecond
