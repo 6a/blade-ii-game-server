@@ -11,6 +11,7 @@ import (
 	"github.com/6a/blade-ii-game-server/internal/routes"
 )
 
+// address is the local address:port that this server will be available on
 const address = "localhost:20000"
 
 func main() {
