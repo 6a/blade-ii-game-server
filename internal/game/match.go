@@ -18,6 +18,7 @@ const payloadDelimiter string = ":"
 const debugGameID uint64 = 20
 const boltedCardOffset = 11
 const turnMaxWait = time.Millisecond * 21000
+const cardDrawDelay = time.Millisecond * 15000
 const tiedScoreAdditionalWait = time.Millisecond * 4500 // additional time to allow for clearing the field etc client side
 const blastCardAdditionalWait = time.Millisecond * 4500 // additional time to allow for the long-ass blast animation
 
@@ -131,15 +132,9 @@ func (match *Match) SetMatchStart() {
 	// Update the local match state
 	match.SetPhase(Play)
 
-	// Start turn timers
-	var nextTurnPeriod time.Duration
-	if match.Client1.connection.Latency > match.Client2.connection.Latency {
-		nextTurnPeriod = turnMaxWait + match.Client1.connection.Latency
-	} else {
-		nextTurnPeriod = turnMaxWait + match.Client2.connection.Latency
-	}
+	// Start turn timer with a super long value
+	match.turnTimer = time.NewTimer(turnMaxWait + cardDrawDelay)
 
-	match.turnTimer = time.NewTimer(nextTurnPeriod)
 	match.Client1.WaitingForMove = true
 	match.Client2.WaitingForMove = true
 
