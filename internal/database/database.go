@@ -248,7 +248,7 @@ func SetMatchStart(matchID uint64) (err error) {
 	return err
 }
 
-// SetMatchResult updates the entire match specified with the winner, end time, and sets phase to 2 (finished).
+// SetMatchResult updates the specified match with the winner, end time, and sets phase to 2 (finished).
 func SetMatchResult(matchID uint64, winnerDatabaseID uint64) (err error) {
 
 	// Prepare a statement that will update the row in the matches table with the specified match ID.
