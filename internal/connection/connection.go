@@ -19,13 +19,13 @@ const (
 	// MessageBufferSize is the size of each clients message buffer (both directions).
 	MessageBufferSize = 32
 
-	// Maximum duration to wait before a write is considered to have failed.
+	// maximumWriteWait is the maximum duration to wait before a write is considered to have failed.
 	maximumWriteWait = time.Second * 8
 
-	// Maximum duration to wait before a connection is considered to be dead due to no inbound traffic (pong or client message).
+	// pongWait is the maximum duration to wait before a connection is considered to be dead due to no inbound traffic (pong or client message).
 	pongWait = maximumWriteWait * 2
 
-	// Duration to wait after a ping is received, before sending another one.
+	// pingPeriod is the duration to wait after a ping is received, before sending another one.
 	pingPeriod = (pongWait * 8) / 10
 )
 
