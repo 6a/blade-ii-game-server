@@ -1,3 +1,8 @@
+// Copyright 2020 James Einosuke Stanton. All rights reserved.
+// Use of this source code is governed by the MIT license
+// that can be found in the LICENSE.md file.
+
+// Package game provides implements the Blade II Online game server.
 package game
 
 import (
@@ -536,7 +541,7 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 			return true
 		}
 
-		if canBeatScore(oppositePlayerHand, scoreGap) {
+		if canOvercomeDifference(oppositePlayerHand, scoreGap) {
 			return false
 		}
 
