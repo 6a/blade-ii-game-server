@@ -12,7 +12,7 @@ import (
 	"github.com/6a/blade-ii-game-server/internal/routes"
 )
 
-const address = "localhost:80"
+const address = "localhost:20000"
 const addressFlag = "address"
 
 var addr = flag.String(addressFlag, address, "Service Address")

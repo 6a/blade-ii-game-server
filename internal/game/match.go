@@ -281,6 +281,7 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool, m
 	var targetField *[]Card
 	var targetDeck *[]Card
 	var targetDiscard *[]Card
+	var targetScore uint16
 
 	var oppositeHand *[]Card
 	var oppositeField *[]Card
@@ -293,6 +294,7 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool, m
 		targetField = &match.State.Cards.Player1Field
 		targetDeck = &match.State.Cards.Player1Deck
 		targetDiscard = &match.State.Cards.Player1Discard
+		targetScore = match.State.Player1Score
 
 		oppositeHand = &match.State.Cards.Player2Hand
 		oppositeField = &match.State.Cards.Player2Field
@@ -302,6 +304,7 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool, m
 		targetField = &match.State.Cards.Player2Field
 		targetDeck = &match.State.Cards.Player2Deck
 		targetDiscard = &match.State.Cards.Player2Discard
+		targetScore = match.State.Player2Score
 
 		oppositeHand = &match.State.Cards.Player1Hand
 		oppositeField = &match.State.Cards.Player1Field
@@ -347,7 +350,8 @@ func (match *Match) updateGameState(player Player, move Move) (validMove bool, m
 		usedBoltEffect := inCard == Bolt && len(*oppositeField) > 0 && !isBolted(last(*oppositeField))
 		usedMirrorEffect := inCard == Mirror && len(*targetField) > 0 && len(*oppositeField) > 0
 		usedBlastEffect = inCard == Blast && len(*oppositeHand) > 0
-		usedNormalOrForceCard := !usedRodEffect && !usedBoltEffect && !usedMirrorEffect && !usedBlastEffect
+		usedForceEffect := inCard == Force && targetScore > 0
+		usedNormalOrForceCard := (!usedRodEffect && !usedBoltEffect && !usedMirrorEffect && !usedBlastEffect) || usedForceEffect
 
 		// If the selected card was a normal or force card, and the target players latest field card is flipped (bolted) remove it
 		if usedNormalOrForceCard && len(*targetField) > 0 && isBolted(last(*targetField)) {
