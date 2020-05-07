@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/6a/blade-ii-game-server/internal/matchmaking"
 
@@ -15,7 +17,10 @@ import (
 const address = "localhost:20000"
 
 func main() {
-	// Initialise the database module.
+	// Seed the random package.
+	rand.Seed(time.Now().UTC().UnixNano())
+
+	// Initialise the database package.
 	database.Init()
 
 	// Create and initialise an instance of the game server.
