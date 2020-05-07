@@ -117,9 +117,9 @@ func (connection *Connection) GetNextReceiveMessage() protocol.Message {
 	return <-connection.InboundMessageQueue
 }
 
-// GetNextSendMessage gets the next message from the outbound message queue.
+// GetNextOutboundMessage gets the next message from the outbound message queue.
 // Blocks when the queue is empty, so check the queue's length if you don't want to wait.
-func (connection *Connection) GetNextSendMessage() protocol.Message {
+func (connection *Connection) GetNextOutboundMessage() protocol.Message {
 
 	// Wait for a message to be added to the outbound message queue.
 	// A loop + select is used so that the ping timer can interrupt the queue read if its blocking,
