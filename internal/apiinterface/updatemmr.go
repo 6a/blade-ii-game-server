@@ -15,6 +15,7 @@ import (
 
 // UpdateMatchStats synchronously sends a request to the API server to update the MMR, as well as
 // the w/d/l for the specified players, based on the winner.
+//
 // Fails silently (for the client) but logs to console.
 func UpdateMatchStats(client1ID uint64, client2ID uint64, winner Winner) {
 
