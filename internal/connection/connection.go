@@ -15,7 +15,7 @@ const (
 	MessageBufferSize = 32
 
 	// Maximum tduration to wait before a write is considered to have failed
-	maximumWriteWait = time.Second * 4
+	maximumWriteWait = time.Second * 8
 
 	// Maximum duration to wait before a pong is considered to be MIA
 	pongWait = maximumWriteWait * 2
