@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
 
@@ -15,9 +14,6 @@ import (
 const address = "localhost:20000"
 
 func main() {
-	flag.Parse()
-	log.SetFlags(0)
-
 	// Init database connection
 	database.Init()
 
