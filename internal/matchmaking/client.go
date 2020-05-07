@@ -67,7 +67,7 @@ func (client *MMClient) pollSend() {
 // Tick reads any incoming messages and passes outgoing messages to the queue
 func (client *MMClient) Tick() {
 	// Process receive queue
-	for len(client.connection.ReceiveQueue) > 0 {
+	for len(client.connection.InboundMessageQueue) > 0 {
 		message := client.connection.GetNextReceiveMessage()
 
 		if message.Payload.Code == protocol.WSCMatchMakingAccept {
