@@ -68,14 +68,6 @@ func (client *GClient) IsSameConnection(other *GClient) bool {
 	return other != nil && client.connection.UUID.Compare(other.connection.UUID) == 0
 }
 
-// Tick reads any incoming messages and passes outgoing messages to the queue
-func (client *GClient) Tick() {
-	// Process receive queue
-	for len(client.connection.ReceiveQueue) > 0 {
-		// message := client.connection.GetNextReceiveMessage()
-	}
-}
-
 // SendMessage sends a message to the client
 func (client *GClient) SendMessage(message protocol.Message) {
 	client.connection.SendMessage(message)

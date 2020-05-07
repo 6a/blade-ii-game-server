@@ -1,8 +1,8 @@
 // Copyright 2009 James Einosuke Stanton. All rights reserved.
 // Use of this source code is governed by the MIT license
-// that can be found in the LICENSE.md file
+// that can be found in the LICENSE.md file.
 
-// Package apiinterface provides utilities for interacting with the Blade II Online REST API
+// Package apiinterface provides utilities for interacting with the Blade II Online REST API.
 package apiinterface
 
 import (

@@ -221,7 +221,7 @@ func makeMessageString(instruction B2MatchInstruction, data string) string {
 
 // tickClient performs the tick actions for the specified client
 func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
-	for len(client.connection.ReceiveQueue) > 0 {
+	for len(client.connection.InboundMessageQueue) > 0 {
 		message := client.connection.GetNextReceiveMessage()
 		if message.Type == protocol.Type(protocol.WSMTText) {
 			if message.Payload.Code == protocol.WSCMatchMove {
