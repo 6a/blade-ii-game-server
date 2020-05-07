@@ -1,3 +1,8 @@
+// Copyright 2020 James Einosuke Stanton. All rights reserved.
+// Use of this source code is governed by the MIT license
+// that can be found in the LICENSE.md file.
+
+// Package game provides implements the Blade II Online game server.
 package game
 
 import (
@@ -29,7 +34,6 @@ type Server struct {
 // AddClient takes a new client and their various data, wraps them up and adds them to the game server
 func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname string, avatar uint8, matchID uint64) {
 	client := NewClient(wsconn, dbid, pid, displayname, matchID, avatar, gs)
-	client.StartEventLoop()
 
 	gs.register <- client
 }
@@ -68,8 +72,8 @@ func (gs *Server) MainLoop() {
 
 							client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchJoined, "Joined match"))
 
-							cardsToSend, drawsUntilValid := GenerateCards()
-							initialisedCards := InitialiseCards(cardsToSend, drawsUntilValid)
+							cardsToSend := GenerateCards()
+							initialisedCards := InitialiseCards(cardsToSend)
 
 							match.State.Cards = initialisedCards
 
