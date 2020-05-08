@@ -62,23 +62,23 @@ func Init() {
 }
 
 // ValidateAuth checks the specified database ID and token to see if they match and are valid.
-func ValidateAuth(publicID string, authToken string) (id uint64, err error) {
+func ValidateAuth(publicID string, authToken string) (databaseID uint64, err error) {
 
 	// Attempt to get the user's Database ID, and ban status.
-	id, banned, err := getUser(publicID)
+	databaseID, banned, err := getUser(publicID)
 	if err != nil {
-		return id, err
+		return databaseID, err
 	}
 
 	// Exit earlier with an error if the user is banned.
 	if banned {
-		return id, errors.New("User is banned")
+		return databaseID, errors.New("User is banned")
 	}
 
 	// Prepare a statement that will fetch the expiry datetime for the specified user's auth token.
 	statement, err := db.Prepare(pstatements.GetAuthExpiry)
 	if err != nil {
-		return id, errors.New("Internal server error: Failed to prepare statement")
+		return databaseID, errors.New("Internal server error: Failed to prepare statement")
 	}
 
 	// Defer closing of the statement so that it is cleaned up properly when this function exits.
@@ -88,18 +88,18 @@ func ValidateAuth(publicID string, authToken string) (id uint64, err error) {
 	// The returned row should have a single column - the expiry of datetime for the auth token.
 	// An error means that either a row was not found, or there was a database error.
 	var expiry time.Time
-	err = statement.QueryRow(id, authToken).Scan(&expiry)
+	err = statement.QueryRow(databaseID, authToken).Scan(&expiry)
 	if err != nil {
-		return id, errors.New("Token is invalid")
+		return databaseID, errors.New("Token is invalid")
 	}
 
 	// If the token is expired (less than [authExpiryGracePeriod] time remains until the expiry datetime), return
 	// an appropriate error.
 	if expiry.Sub(time.Now()) <= authExpiryGracePeriod {
-		return id, errors.New("Token is expired")
+		return databaseID, errors.New("Token is expired")
 	}
 
-	return id, err
+	return databaseID, err
 }
 
 // GetMMR returns the current MMR for the specified user.
