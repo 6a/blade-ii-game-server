@@ -2,7 +2,7 @@
 // Use of this source code is governed by the MIT license
 // that can be found in the LICENSE.md file.
 
-// Package rid implements various math helper functions. Adapted from
+// Package rid implements cryptographically secure random strings. Adapted from
 // https://gist.github.com/denisbrodbeck/635a644089868a51eccd6ae22b2eb800
 package rid
 
