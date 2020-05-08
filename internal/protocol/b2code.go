@@ -1,18 +1,25 @@
+// Copyright 2020 James Einosuke Stanton. All rights reserved.
+// Use of this source code is governed by the MIT license
+// that can be found in the LICENSE.md file.
+
+// Package protocol provides utilities for handling websocket messages.
 package protocol
 
-// B2Code is a typedef for non-system websocket messages
+// B2Code is a typedef for non-system websocket messages.
 type B2Code uint16
 
-// WSCNone is a generic all-purpose code. Try to avoid using this unless the message can be safely ignored
+// WSCNone is a generic all-purpose code. Try to avoid using this unless the message can be safely ignored.
 const WSCNone B2Code = 0
 
-// Connection
+// Codes are all explicitly numbered so that their numerical value can be seen when hovering them in vscode.
+
+// Connection codes.
 const (
 	WSCConnectionTimeOut      B2Code = 100
 	WSCUnknownConnectionError B2Code = 101
 )
 
-// Auth
+// Auth codes.
 const (
 	WSCAuthRequest        B2Code = 200
 	WSCAuthBadFormat      B2Code = 201
@@ -25,7 +32,7 @@ const (
 	WSCAuthSuccess        B2Code = 208
 )
 
-// MatchMaking
+// MatchMaking codes.
 const (
 	WSCMatchMakingMatchFound B2Code = 300
 	WSCMatchMakingAccept     B2Code = 301
@@ -36,7 +43,7 @@ const (
 	WSCOpponentDidNotAccept  B2Code = 306
 )
 
-// Match
+// Match codes.
 const (
 	WSCMatchID                  B2Code = 400
 	WSCMatchIDExpected          B2Code = 401
