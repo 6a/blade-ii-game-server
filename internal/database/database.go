@@ -76,6 +76,7 @@ func ValidateAuth(publicID string, authToken string) (databaseID uint64, err err
 	}
 
 	// Prepare a statement that will fetch the expiry datetime for the specified user's auth token.
+	// Exit on error.
 	statement, err := db.Prepare(pstatements.GetAuthExpiry)
 	if err != nil {
 		return databaseID, errors.New("Internal server error: Failed to prepare statement")
@@ -106,6 +107,7 @@ func ValidateAuth(publicID string, authToken string) (databaseID uint64, err err
 func GetMMR(databaseID uint64) (MMR int, err error) {
 
 	// Prepare a statement that will fetch the MMR for the specified user.
+	// Exit on error.
 	statement, err := db.Prepare(pstatements.GetMMR)
 	if err != nil {
 		return MMR, errors.New("Internal server error: Failed to prepare statement")
@@ -129,6 +131,7 @@ func GetMMR(databaseID uint64) (MMR int, err error) {
 func CreateMatch(client1DatabaseID uint64, client2DatabaseID uint64) (matchID uint64, err error) {
 
 	// Prepare a statement that will add an entry to the matches table with the specified match details.
+	// Exit on error.
 	statement, err := db.Prepare(pstatements.CreateMatch)
 	if err != nil {
 		return matchID, errors.New("Internal server error: Failed to prepare statement")
@@ -161,7 +164,7 @@ func CreateMatch(client1DatabaseID uint64, client2DatabaseID uint64) (matchID ui
 func ValidateMatch(databaseID uint64, matchID uint64) (valid bool, err error) {
 
 	// Prepare a statement that will check if a match exists in the matches table with the specified match
-	// ID, and the specified user is present.
+	// ID, and the specified user is present. Exit on error.
 	statement, err := db.Prepare(pstatements.CheckMatchValid)
 
 	// Defer closing of the statement so that it is cleaned up properly when this function exits.
@@ -185,6 +188,7 @@ func ValidateMatch(databaseID uint64, matchID uint64) (valid bool, err error) {
 func GetClientNameAndAvatar(databaseID uint64) (displayname string, avatar uint8, err error) {
 
 	// Prepare a statement that will fetch the display name for the specified user.
+	// Exit on error.
 	statement, err := db.Prepare(pstatements.GetDisplayName)
 	if err != nil {
 		return displayname, 0, errors.New("Internal server error: Failed to prepare statement")
@@ -231,6 +235,7 @@ func GetClientNameAndAvatar(databaseID uint64) (displayname string, avatar uint8
 func SetMatchStart(matchID uint64) (err error) {
 
 	// Prepare a statement that will update the row in the matches table with the specified match ID.
+	// Exit on error.
 	statement, err := db.Prepare(pstatements.SetMatchStart)
 	if err != nil {
 		return errors.New("Internal server error: Failed to prepare statement")
@@ -254,6 +259,7 @@ func SetMatchStart(matchID uint64) (err error) {
 func SetMatchResult(matchID uint64, winnerDatabaseID uint64) (err error) {
 
 	// Prepare a statement that will update the row in the matches table with the specified match ID.
+	// Exit on error.
 	statement, err := db.Prepare(pstatements.SetMatchResult)
 	if err != nil {
 		return errors.New("Internal server error: Failed to prepare statement")
@@ -277,6 +283,7 @@ func SetMatchResult(matchID uint64, winnerDatabaseID uint64) (err error) {
 func getUser(publicID string) (databaseID uint64, banned bool, err error) {
 
 	// Prepare a statement that will query the users table with the specified public ID.
+	// Exit on error.
 	statement, err := db.Prepare(pstatements.GetUser)
 	if err != nil {
 		return databaseID, banned, errors.New("Internal server error: Failed to prepare statement")

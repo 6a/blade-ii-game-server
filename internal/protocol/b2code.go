@@ -5,7 +5,7 @@
 // Package protocol provides utilities for handling websocket messages.
 package protocol
 
-// B2Code is a typedef for non-system websocket messages.
+// B2Code is a uint16 typedef for non-system websocket messages.
 type B2Code uint16
 
 // WSCNone is a generic all-purpose code. Try to avoid using this unless the message can be safely ignored.

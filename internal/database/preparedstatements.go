@@ -51,7 +51,7 @@ func (p *PreparedStatements) Construct(envvars *EnvironmentVariables) {
 	// Update the "phase" and "start" column for the row in the matches table with the specified match ID.
 	p.SetMatchStart = fmt.Sprintf("UPDATE `%v`.`%v` SET `phase` = 1, `start` = NOW() WHERE `id` = ?;", envvars.DBName, envvars.TableMatches)
 
-	// Update the "phase", "winner", and end column for the row in the matches table with the specified match ID.
+	// Update the "phase", "winner", and "end" column for the row in the matches table with the specified match ID.
 	p.SetMatchResult = fmt.Sprintf("UPDATE `%v`.`%v` SET `phase` = ?, `winner` = ?, `end` = NOW() WHERE `id` = ?;", envvars.DBName, envvars.TableMatches)
 
 	log.Println("Prepared statements constructed successfully")
