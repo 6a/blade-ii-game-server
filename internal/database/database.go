@@ -126,7 +126,7 @@ func GetMMR(databaseID uint64) (MMR int, err error) {
 }
 
 // CreateMatch creates a match with the two clients specified, and returns the match id.
-func CreateMatch(client1DatabaseID uint64, client2DatabaseID uint64) (matchID int64, err error) {
+func CreateMatch(client1DatabaseID uint64, client2DatabaseID uint64) (matchID uint64, err error) {
 
 	// Prepare a statement that will add an entry to the matches table with the specified match details.
 	statement, err := db.Prepare(pstatements.CreateMatch)
@@ -147,10 +147,12 @@ func CreateMatch(client1DatabaseID uint64, client2DatabaseID uint64) (matchID in
 
 	// Read the last insert ID from the result from the previous query - this is the match ID,
 	// which is used as the return value for this function.
-	matchID, err = res.LastInsertId()
+	matchIDInt, err := res.LastInsertId()
 	if err != nil {
 		return matchID, err
 	}
+
+	matchID = uint64(matchIDInt)
 
 	return matchID, err
 }

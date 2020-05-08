@@ -1,43 +1,64 @@
+// Copyright 2020 James Einosuke Stanton. All rights reserved.
+// Use of this source code is governed by the MIT license
+// that can be found in the LICENSE.md file.
+
+// Package matchmaking implements the Blade II Online matchmaking server.
 package matchmaking
 
 import (
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/6a/blade-ii-game-server/internal/protocol"
 )
 
-// ClientPair is a light wrapper for a pair of client connections
+// ClientPair is a light wrapper for a pair of client connections.
 type ClientPair struct {
-	C1              *MMClient
-	C2              *MMClient
-	ReadyStart      time.Time
+
+	// Pointer to both clients.
+	Client1 *MMClient
+	Client2 *MMClient
+
+	// The time at which the ready check began.
+	ReadyStart time.Time
+
+	// Whether the pair is currently undergoing a ready check.
 	IsReadyChecking bool
 }
 
-// NewPair creates a new ClientPair
-func NewPair(c1 *MMClient, c2 *MMClient) ClientPair {
-	return ClientPair{
-		C1: c1,
-		C2: c2,
+// NewPair initializes and returns a pointer to a new client pair.
+func NewPair(client1 *MMClient, client2 *MMClient) *ClientPair {
+
+	// Initialize and return a new clientpair based on the specified clients.
+	return &ClientPair{
+		Client1: client1,
+		Client2: client2,
 	}
 }
 
-// SendMatchStartMessage sends a match start message to both clients
-func (pair *ClientPair) SendMatchStartMessage() {
+// SendMatchFoundMessage sends a match found message to both clients.
+func (pair *ClientPair) SendMatchFoundMessage() {
+
+	// Update the state of the pair.
 	pair.ReadyStart = time.Now()
 	pair.IsReadyChecking = true
 
-	pair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchMakingGameFound, ""))
-	pair.C1.IsReadyChecking = true
+	// Send a match found message to client 1, and set their internal ready checking flag to true.
+	pair.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchMakingMatchFound, ""))
+	pair.Client1.IsReadyChecking = true
 
-	pair.C2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchMakingGameFound, ""))
-	pair.C2.IsReadyChecking = true
+	// Send a match found message to client 2, and set their internal ready checking flag to true.
+	pair.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchMakingMatchFound, ""))
+	pair.Client2.IsReadyChecking = true
 }
 
-// SendMatchConfirmedMessage sends a match confirmation message with match ID to both clients
-func (pair *ClientPair) SendMatchConfirmedMessage(matchID int64) {
-	stringID := fmt.Sprintf("%v", matchID)
-	pair.C1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, stringID))
-	pair.C2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, stringID))
+// SendMatchConfirmedMessage sends a match confirmation message with match ID to both clients.
+func (pair *ClientPair) SendMatchConfirmedMessage(matchID uint64) {
+
+	// Get a string representation of the match ID.
+	matchIDString := strconv.FormatUint(matchID, 10)
+
+	// Send the match ID string to both clients.
+	pair.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, matchIDString))
+	pair.Client2.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchConfirmed, matchIDString))
 }

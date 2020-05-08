@@ -27,13 +27,13 @@ const (
 
 // MatchMaking
 const (
-	WSCMatchMakingGameFound B2Code = 300
-	WSCMatchMakingAccept    B2Code = 301
-	WSCMatchConfirmed       B2Code = 302
-	WSCReadyCheckFailed     B2Code = 303
-	WSCJoinedQueue          B2Code = 304
-	WSCOpponentAccepted     B2Code = 305
-	WSCOpponentDidNotAccept B2Code = 306
+	WSCMatchMakingMatchFound B2Code = 300
+	WSCMatchMakingAccept     B2Code = 301
+	WSCMatchConfirmed        B2Code = 302
+	WSCReadyCheckFailed      B2Code = 303
+	WSCJoinedQueue           B2Code = 304
+	WSCOpponentAccepted      B2Code = 305
+	WSCOpponentDidNotAccept  B2Code = 306
 )
 
 // Match

@@ -42,7 +42,35 @@ type Server struct {
 	commands chan protocol.Command
 }
 
-// AddClient takes a new client and their various data, wraps them up and adds them to the game server to be processed later.
+// Init initializes the game server including starting the internal loop.
+func (gs *Server) Init() {
+
+	// Initialize the matches map.
+	gs.matches = make(map[uint64]*Match)
+
+	// Initialize the various channels.
+	gs.connect = make(chan *GClient, BufferSize)
+	gs.disconnect = make(chan DisconnectRequest, BufferSize)
+	gs.broadcast = make(chan protocol.Message, BufferSize)
+	gs.commands = make(chan protocol.Command, BufferSize)
+
+	go gs.MainLoop()
+}
+
+// NewServer creates and returns a pointer to a new game server.
+func NewServer() *Server {
+
+	// Create a new game server.
+	gs := Server{}
+
+	// Initialize the game server.
+	gs.Init()
+
+	// Return a pointer to the newly created game server.
+	return &gs
+}
+
+// AddClient takes a websocket connection various data, wraps them up and adds them to the game server as a client, to be processed later.
 func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, displayname string, avatar uint8, matchID uint64) {
 
 	// Create a new client
@@ -52,7 +80,7 @@ func (gs *Server) AddClient(wsconn *websocket.Conn, dbid uint64, pid string, dis
 	gs.connect <- client
 }
 
-// Remove adds a client to the deletion queue, to be deleted later.
+// Remove adds a client to the disconnect queue, to be disconnected later, along with a reason code and a message.
 func (gs *Server) Remove(client *GClient, reason protocol.B2Code, message string) {
 
 	// Create a new disconnect request
@@ -200,11 +228,14 @@ func (gs *Server) MainLoop() {
 				for _, match := range gs.matches {
 					match.BroadCast(message)
 				}
+
 				break
 			case command := <-gs.commands:
 
 				// Process the command.
 				gs.processCommand(command)
+
+				break
 			}
 		}
 
@@ -227,13 +258,6 @@ func (gs *Server) MainLoop() {
 			time.Sleep(remainingPollTime)
 		}
 	}
-}
-
-// processCommand handles server commands.
-//
-// Note - not yet implemented, but prints out some diagonstics and returns with a noop.
-func (gs *Server) processCommand(command protocol.Command) {
-	log.Printf("Processing command of type [ %v ] with data [ %v ]", command.Type, command.Data)
 }
 
 // handleDisconnectRequests handles disconnect requests for clients in the server.
@@ -410,30 +434,9 @@ func (gs *Server) handleDisconnectRequests() {
 	}
 }
 
-// Init initializes the game server including starting the internal loop.
-func (gs *Server) Init() {
-
-	// Initialize the matches map.
-	gs.matches = make(map[uint64]*Match)
-
-	// Initialize
-	gs.connect = make(chan *GClient, BufferSize)
-	gs.disconnect = make(chan DisconnectRequest, BufferSize)
-	gs.broadcast = make(chan protocol.Message, BufferSize)
-	gs.commands = make(chan protocol.Command, BufferSize)
-
-	go gs.MainLoop()
-}
-
-// NewServer creates and returns a pointer to a new game server.
-func NewServer() *Server {
-
-	// Create a new game server.
-	gs := Server{}
-
-	// Initialize the game server.
-	gs.Init()
-
-	// Return a pointer to the newly created game server.
-	return &gs
+// processCommand handles server commands.
+//
+// Note - not yet implemented, but prints out some diagonstics and returns with a noop.
+func (gs *Server) processCommand(command protocol.Command) {
+	log.Printf("Processing command of type [ %v ] with data [ %v ]", command.Type, command.Data)
 }
