@@ -6,9 +6,9 @@
 package game
 
 import (
-	"bytes"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -231,16 +231,16 @@ func (match *Match) BroadCast(message protocol.Message) {
 // SendCardData sends starting card data to each client.
 func (match *Match) SendCardData(cards string) {
 
-	// Create two buffers, one for each player.
-	var client1Buffer bytes.Buffer
-	var client2Buffer bytes.Buffer
+	// Create two string builders, one for each player.
+	var client1Buffer strings.Builder
+	var client2Buffer strings.Builder
 
-	// Write the player number, card data delimiter, and then the serialized card data, to player 1's buffer.
+	// Write the player number, card data delimiter, and then the serialized card data, to player 1's string builder.
 	client1Buffer.WriteString("0")
 	client1Buffer.WriteString(SerializedCardsDelimiter)
 	client1Buffer.WriteString(cards)
 
-	// Write the player number, card data delimiter, and then the serialized card data, to player 2's buffer.
+	// Write the player number, card data delimiter, and then the serialized card data, to player 2's string builder.
 	client2Buffer.WriteString("1")
 	client2Buffer.WriteString(SerializedCardsDelimiter)
 	client2Buffer.WriteString(cards)
@@ -252,18 +252,18 @@ func (match *Match) SendCardData(cards string) {
 // SendPlayerData sends each player's (their own) name to the respective client.
 func (match *Match) SendPlayerData() {
 
-	// Create two buffers, one for each player.
-	var client1Buffer bytes.Buffer
-	var client2Buffer bytes.Buffer
+	// Create two string builders, one for each player.
+	var client1Buffer strings.Builder
+	var client2Buffer strings.Builder
 
-	// Write the player's display name, client data delimiter, and then the player's avatar ID (as a string), to player 1's buffer.
+	// Write the player's display name, client data delimiter, and then the player's avatar ID (as a string), to player 1's string builder.
 	client1Buffer.WriteString(match.Client1.DisplayName)
 	client1Buffer.WriteString(clientDataDelimiter)
 
 	// Note the conversion to an int before the call to Itoa.
 	client1Buffer.WriteString(strconv.Itoa(int(match.Client1.Avatar)))
 
-	// Write the player's display name, client data delimiter, and then the player's avatar ID (as a string), to player 2's buffer.
+	// Write the player's display name, client data delimiter, and then the player's avatar ID (as a string), to player 2's string builder.
 	client2Buffer.WriteString(match.Client2.DisplayName)
 	client2Buffer.WriteString(clientDataDelimiter)
 
@@ -277,14 +277,14 @@ func (match *Match) SendPlayerData() {
 // SendOpponentData sends each player the opponents data.
 func (match *Match) SendOpponentData() {
 
-	// Create two buffers, one for each player.
-	var client1Buffer bytes.Buffer
-	var client2Buffer bytes.Buffer
+	// Create two string builders, one for each player.
+	var client1Buffer strings.Builder
+	var client2Buffer strings.Builder
 
-	// Build the two buffers with the following format:
+	// Build the two string builders with the following format:
 	// <other player display name><delim><other player public ID><delim><other player avatar ID>
 
-	// Player 1's buffer.
+	// Player 1's string builder.
 	client1Buffer.WriteString(match.Client2.DisplayName)
 	client1Buffer.WriteString(clientDataDelimiter)
 	client1Buffer.WriteString(match.Client2.PublicID)
@@ -293,7 +293,7 @@ func (match *Match) SendOpponentData() {
 	// Note the conversion to an int before the call to Itoa.
 	client1Buffer.WriteString(strconv.Itoa(int(match.Client2.Avatar)))
 
-	// Player 2's buffer.
+	// Player 2's string builder.
 	client2Buffer.WriteString(match.Client1.DisplayName)
 	client2Buffer.WriteString(clientDataDelimiter)
 	client2Buffer.WriteString(match.Client1.PublicID)
@@ -409,17 +409,17 @@ func (match *Match) GetPhase() Phase {
 	return match.State.Phase
 }
 
-// sendMatchData is a helper function that sends match data, based on the two buffers provided, to the respective clients, with
+// sendMatchData is a helper function that sends match data, based on the two string builders provided, to the respective clients, with
 // the specified instruction.
-func (match *Match) sendMatchData(client1Buffer bytes.Buffer, client2Buffer bytes.Buffer, instruction B2MatchInstruction) {
+func (match *Match) sendMatchData(client1Buffer strings.Builder, client2Buffer strings.Builder, instruction B2MatchInstruction) {
 
-	// Package player 1's buffer as a string along with the specified B2MatchInstruction.
+	// Package player 1's string builder as a string along with the specified B2MatchInstruction.
 	client1MessageString := makeMessageString(instruction, client1Buffer.String())
 
 	// Send the packaged message to player 1.
 	match.Client1.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCMatchData, client1MessageString))
 
-	// Package player 2's buffer as a string along with the specified B2MatchInstruction.
+	// Package player 2's string builder as a string along with the specified B2MatchInstruction.
 	client2MessageString := makeMessageString(instruction, client2Buffer.String())
 
 	// Send the packaged message to player 2.
@@ -432,17 +432,17 @@ func (match *Match) sendMatchData(client1Buffer bytes.Buffer, client2Buffer byte
 // Format: <instruction><delim><data>
 func makeMessageString(instruction B2MatchInstruction, data string) string {
 
-	// Create a buffer.
-	var buffer bytes.Buffer
+	// Create a string builder.
+	var builder strings.Builder
 
-	// Write the instruction number, the delimiter, and the data to the buffer. Note the conversion
+	// Write the instruction number, the delimiter, and the data to the string builder. Note the conversion
 	// to an int before the call to Itoa.
-	buffer.WriteString(strconv.Itoa(int(instruction)))
-	buffer.WriteString(payloadDelimiter)
-	buffer.WriteString(data)
+	builder.WriteString(strconv.Itoa(int(instruction)))
+	builder.WriteString(payloadDelimiter)
+	builder.WriteString(data)
 
-	// Return the buffer as a string.
-	return buffer.String()
+	// Return the string builder as a string.
+	return builder.String()
 }
 
 // updateMatchState takes a move that the specified player made, and updates the match state accordingly.
