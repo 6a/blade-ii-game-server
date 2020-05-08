@@ -139,8 +139,9 @@ func (connection *Connection) GetNextOutboundMessage() protocol.Message {
 			// Store the time at which this ping was sent (for calculating latency).
 			connection.lastPingTime = time.Now()
 
-			// Dont bother checking for errors as they will be detected when the websocket is next written to / read from.
-			_ = connection.WS.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(maximumWriteWait))
+			// Write a ping message. Dont bother checking for errors as they will be detected when the websocket is
+			// next written to / read from.
+			connection.WS.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(maximumWriteWait))
 		}
 	}
 }

@@ -92,7 +92,7 @@ func (match *Match) Tick() {
 		select {
 
 		// Read from the channel to drain it.
-		case _ = <-match.turnTimer.C:
+		case <-match.turnTimer.C:
 
 			// Determine which player(s) timed out.
 
