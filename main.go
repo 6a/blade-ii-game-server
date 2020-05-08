@@ -1,3 +1,8 @@
+// Copyright 2020 James Einosuke Stanton. All rights reserved.
+// Use of this source code is governed by the MIT license
+// that can be found in the LICENSE.md file.
+
+// Package main implements the initialization and entry point function for this server, in main().
 package main
 
 import (
@@ -35,7 +40,8 @@ func main() {
 	// Set up the matchmaking server http handler.
 	routes.SetupMatchMaking(matchmakingServer)
 
-	// Start the http server - the log.Fatal wrapper ensures that any exceptions will cause a clean exit with a proper exit code.
 	log.Printf("Blade II Online Gameserver listening on: %v", address)
+
+	// Start the http server - the log.Fatal wrapper ensures that any exceptions will cause a clean exit with a proper exit code.
 	log.Fatal(http.ListenAndServe(address, nil))
 }
