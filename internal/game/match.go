@@ -758,6 +758,7 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 	// the arrays will not be modified.
 
 	var targetPlayerScore uint16
+	var targetHand []Card
 	var targetField []Card
 
 	var oppositePlayerScore uint16
@@ -778,6 +779,7 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 	// for the previously declared variables.
 	if player == Player1 {
 		targetPlayerScore = match.State.Player1Score
+		targetHand = match.State.Cards.Player1Hand
 		targetField = match.State.Cards.Player1Field
 
 		oppositePlayerScore = match.State.Player2Score
@@ -787,6 +789,7 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 
 	} else if player == Player2 {
 		targetPlayerScore = match.State.Player2Score
+		targetHand = match.State.Cards.Player2Hand
 		targetField = match.State.Cards.Player2Field
 
 		oppositePlayerScore = match.State.Player1Score
@@ -796,6 +799,11 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 	} else {
 
 		// Edge case - if a non player (undecided) was passed in, exit early.
+		return false
+	}
+
+	// Early exit if the target player has effect cards left - this was the loss should be detcted by the other call
+	if !isOppositePlayersTurn && len(targetHand) > 0 && containsOnlyEffectCards(targetHand) {
 		return false
 	}
 
