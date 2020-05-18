@@ -17,13 +17,13 @@ import (
 const (
 
 	// BufferSize is the size of each message queue's buffer.
-	BufferSize = 256
+	BufferSize = 2048
 
 	// readyCheckTime is maximum time to wait for a ready check.
 	readyCheckTime = time.Second * 20
 
 	// How frequently to update the matchmaking queue (minimum wait between iterations).
-	pollTime = 500 * time.Millisecond
+	pollTime = 250 * time.Millisecond
 )
 
 // Queue is a wrapper for the matchmaking queue

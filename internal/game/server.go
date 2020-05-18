@@ -16,7 +16,7 @@ import (
 const (
 
 	// BufferSize is the size of each message queue's buffer.
-	BufferSize = 256
+	BufferSize = 2048
 
 	// How frequently to update the matchmaking queue (minimum wait between iterations).
 	pollTime = 250 * time.Millisecond
