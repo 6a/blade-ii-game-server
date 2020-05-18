@@ -25,9 +25,6 @@ type MMClient struct {
 	PublicID string
 	MMR      int
 
-	// The clients own index within the matchmaking queue.
-	QueueIndex uint64
-
 	// Whether the client is ready (for ready checking).
 	Ready bool
 

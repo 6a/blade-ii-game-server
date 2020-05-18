@@ -13,6 +13,7 @@ import (
 
 	"github.com/6a/blade-ii-game-server/internal/database"
 	"github.com/6a/blade-ii-game-server/internal/protocol"
+	"github.com/6a/blade-ii-game-server/pkg/slice"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
 	BufferSize = 2048
 
 	// readyCheckTime is maximum time to wait for a ready check.
-	readyCheckTime = time.Second * 20
+	readyCheckTime = time.Second * 6
 
 	// How frequently to update the matchmaking queue (minimum wait between iterations).
 	pollTime = 250 * time.Millisecond
@@ -160,19 +161,20 @@ func (queue *Queue) MainLoop() {
 		// Remove any clients that are pending removal.
 		for index := len(toRemove) - 1; index >= 0; index-- {
 
-			// If a client with the key (queue index) is found in the matchmaking queue...
+			// If the client to be removed is found in the queue...
 			if client, ok := queue.queue[toRemove[index].Client.DBID]; ok {
 
 				// Get the public ID for the client.
 				deletedClientPID := client.PublicID
 
 				// Close the connection.
-				client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
+				toRemove[index].Client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
 
 				// Check to see if the connection identifier is the same - if it is, then we remove it.
 				// If not, it means that this client is actually a stale connection, and it has already
 				// been removed from the matchmaking queue.
 				if client.connection.UUID == toRemove[index].Client.connection.UUID {
+
 					// Delete the client from the matchmaking queue.
 					delete(queue.queue, toRemove[index].Client.DBID)
 
@@ -181,25 +183,25 @@ func (queue *Queue) MainLoop() {
 
 						// If the current value of the index iterator is the same as the client index of the client
 						// that is to be disconnected, remove the index from the queue index slice.
-						if queue.clientIndex[index] == toRemove[index].Client.DBID {
+						if queue.clientIndex[indexIterator] == toRemove[index].Client.DBID {
 
-							// If the queue only has 1 client, handle this as an edge case because we cant shrink it - instead
-							// we just overwrite it with a new empty slice. Otherwise, remove the slice member at the position
-							// indicated by the index iterator.
-							if len(queue.clientIndex) == 1 {
-								queue.clientIndex = make([]uint64, 0)
-							} else {
-								queue.clientIndex = append(queue.clientIndex[:indexIterator], queue.clientIndex[indexIterator+1:]...)
-							}
+							// Remove the slice member at the position indicated by the index iterator.
+							slice.RemoveAtIndexUInt64(&queue.clientIndex, indexIterator)
+
+							// Decrement the index iterator by 1.
+							indexIterator--
+
 							break
 						}
 
 						// Decrement the index iterator by 1.
 						indexIterator--
 					}
-				}
 
-				log.Printf("Client [%s] left the matchmaking queue. Total clients: %v", deletedClientPID, len(queue.queue))
+					log.Printf("Client [%s] left the matchmaking queue. Total clients: %v", deletedClientPID, len(queue.queue))
+				} else {
+					log.Printf("Client [%s] (stale connection) was removed from the matchmaking queue. Total clients: %v", deletedClientPID, len(queue.queue))
+				}
 			}
 		}
 
