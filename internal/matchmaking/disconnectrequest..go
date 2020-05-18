@@ -12,8 +12,8 @@ import (
 // DisconnectRequest is a wrapper for the information required to remove a client from the matchmaking queue.
 type DisconnectRequest struct {
 
-	// The internal matchmaking queue ID for this client.
-	clientIndex uint64
+	// A pointer to the client that will be removed.
+	Client *MMClient
 
 	// The reason for removal.
 	Reason protocol.B2Code

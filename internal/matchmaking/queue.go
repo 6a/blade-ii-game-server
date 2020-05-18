@@ -8,6 +8,7 @@ package matchmaking
 import (
 	"log"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/6a/blade-ii-game-server/internal/database"
@@ -33,12 +34,16 @@ type Queue struct {
 	// as maps are not ordered in golang.
 	clientIndex []uint64
 
+	// The current ID number - each client is given a unique ID when they join the server. This
+	// value should be incremented per client, so that it can be used to sort them.
+	nextClientID uint64
+
+	// Mutex lock for getting the next client ID
+	clientIDMutex sync.Mutex
+
 	// A slice of client pairs, containing client pairs that have been matched together, and
 	// and are currently performing a ready check (or waiting for one to start).
 	matchedPairs []ClientPair
-
-	// The next index to use as a key when adding a client to the matchmaking map.
-	nextIndex uint64
 
 	// A map containing all the clients that are currently matchmaking - essentially the matchmaking queue itself.
 	queue map[uint64]*MMClient
@@ -95,17 +100,27 @@ func (queue *Queue) MainLoop() {
 			select {
 			case client := <-queue.connect:
 
-				// Add the client to the queue, using the next avaialable queue index.
-				queue.queue[queue.nextIndex] = client
+				// If a client with the same DBID already exists, we need to set it to be removed, and then
+				// update the new clients values to match
+				if oldClient, ok := queue.queue[client.DBID]; ok {
 
-				// Also set the queue index for the client itself.
-				client.QueueIndex = queue.nextIndex
+					// Disconnect the old client
+					queue.Remove(oldClient, protocol.WSCDuplicateConnection, "Removing stale connection")
 
-				// Also add the index to the client index, to preserve its order.
-				queue.clientIndex = append(queue.clientIndex, queue.nextIndex)
+					// Set the client ID on the new client to match the old one
+					client.ClientID = oldClient.ClientID
 
-				// incremement next index so the next client gets a new value.
-				queue.nextIndex++
+				} else {
+
+					// Add the key to the client index, which doubles as a record of the join order of the clients.
+					queue.clientIndex = append(queue.clientIndex, client.DBID)
+
+					// Set the client ID on the client wit a new ID
+					client.ClientID = queue.getNextClientID()
+				}
+
+				// Add the client to the queue
+				queue.queue[client.DBID] = client
 
 				// Send a message to the client informing it that it has joined the matchmaking queue.
 				client.SendMessage(protocol.NewMessage(protocol.WSMTText, protocol.WSCJoinedQueue, "Added to matchmaking queue"))
@@ -137,7 +152,7 @@ func (queue *Queue) MainLoop() {
 		}
 
 		// Sort the pending removal slice in ascending order so that we can iterate through the queue index once (by going backwards).
-		sort.Slice(toRemove, func(i, j int) bool { return toRemove[i].clientIndex < toRemove[j].clientIndex })
+		sort.Slice(toRemove, func(i, j int) bool { return toRemove[i].Client.ClientID < toRemove[j].Client.ClientID })
 
 		// Initialise a variable to use so that we can retain our position when iterating down the queue index.
 		indexIterator := len(queue.clientIndex) - 1
@@ -145,11 +160,8 @@ func (queue *Queue) MainLoop() {
 		// Remove any clients that are pending removal.
 		for index := len(toRemove) - 1; index >= 0; index-- {
 
-			// Get the client index of the client to remove.
-			removalIndex := toRemove[index].clientIndex
-
 			// If a client with the key (queue index) is found in the matchmaking queue...
-			if client, ok := queue.queue[removalIndex]; ok {
+			if client, ok := queue.queue[toRemove[index].Client.DBID]; ok {
 
 				// Get the public ID for the client.
 				deletedClientPID := client.PublicID
@@ -157,29 +169,34 @@ func (queue *Queue) MainLoop() {
 				// Close the connection.
 				client.Close(protocol.NewMessage(protocol.WSMTText, toRemove[index].Reason, toRemove[index].Message))
 
-				// Delete the client from the matchmaking queue.
-				delete(queue.queue, removalIndex)
+				// Check to see if the connection identifier is the same - if it is, then we remove it.
+				// If not, it means that this client is actually a stale connection, and it has already
+				// been removed from the matchmaking queue.
+				if client.connection.UUID == toRemove[index].Client.connection.UUID {
+					// Delete the client from the matchmaking queue.
+					delete(queue.queue, toRemove[index].Client.DBID)
 
-				// Iterate down the client index slice, backwards, using the iterator that that declared earlier.
-				for indexIterator >= 0 {
+					// Iterate down the client index slice, backwards, using the iterator that that declared earlier.
+					for indexIterator >= 0 {
 
-					// If the current value of the index iterator is the same as the client index of the client
-					// that is to be disconnected, rmove the index from the queue index slice.
-					if queue.clientIndex[index] == removalIndex {
+						// If the current value of the index iterator is the same as the client index of the client
+						// that is to be disconnected, remove the index from the queue index slice.
+						if queue.clientIndex[index] == toRemove[index].Client.DBID {
 
-						// If the queue only has 1 client, handle this as an edge case because we cant shrink it - instead
-						// we just overwrite it with a new empty slice. Otherwise, remove the slice member at the position
-						// indicated by the index iterator.
-						if len(queue.clientIndex) == 1 {
-							queue.clientIndex = make([]uint64, 0)
-						} else {
-							queue.clientIndex = append(queue.clientIndex[:indexIterator], queue.clientIndex[indexIterator+1:]...)
+							// If the queue only has 1 client, handle this as an edge case because we cant shrink it - instead
+							// we just overwrite it with a new empty slice. Otherwise, remove the slice member at the position
+							// indicated by the index iterator.
+							if len(queue.clientIndex) == 1 {
+								queue.clientIndex = make([]uint64, 0)
+							} else {
+								queue.clientIndex = append(queue.clientIndex[:indexIterator], queue.clientIndex[indexIterator+1:]...)
+							}
+							break
 						}
-						break
-					}
 
-					// Decrement the index iterator by 1.
-					indexIterator--
+						// Decrement the index iterator by 1.
+						indexIterator--
+					}
 				}
 
 				log.Printf("Client [%s] left the matchmaking queue. Total clients: %v", deletedClientPID, len(queue.queue))
@@ -241,9 +258,9 @@ func (queue *Queue) Remove(client *MMClient, reason protocol.B2Code, message str
 
 	// Create a new disconnect request
 	disconnectRequest := DisconnectRequest{
-		clientIndex: client.QueueIndex,
-		Reason:      reason,
-		Message:     message,
+		Client:  client,
+		Reason:  reason,
+		Message: message,
 	}
 
 	// Add it to the disconnect queue
@@ -405,4 +422,16 @@ func (queue *Queue) matchMake() (pairs []ClientPair) {
 // Note - not yet implemented, but prints out some diagonstics and returns with a noop.
 func (queue *Queue) processCommand(command protocol.Command) {
 	log.Printf("Processing command of type [ %v ] with data [ %v ]", command.Type, command.Data)
+}
+
+//
+func (queue *Queue) getNextClientID() uint64 {
+
+	queue.clientIDMutex.Lock()
+	defer queue.clientIDMutex.Unlock()
+
+	returnID := queue.nextClientID
+	queue.nextClientID++
+
+	return returnID
 }

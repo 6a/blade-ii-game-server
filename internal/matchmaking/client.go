@@ -43,6 +43,9 @@ type MMClient struct {
 	// A pointer to the websocket connection for this client.
 	connection *connection.Connection
 
+	// A unique ID used for sorting - Should be set once connected
+	ClientID uint64
+
 	// A pointer to the matchmaking queue.
 	queue *Queue
 
