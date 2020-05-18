@@ -22,7 +22,7 @@ const (
 	BufferSize = 2048
 
 	// readyCheckTime is maximum time to wait for a ready check.
-	readyCheckTime = time.Second * 6
+	readyCheckTime = time.Second * 20
 
 	// How frequently to update the matchmaking queue (minimum wait between iterations).
 	pollTime = 250 * time.Millisecond
