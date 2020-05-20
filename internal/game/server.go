@@ -32,8 +32,11 @@ type Server struct {
 	// been confirmed to eligible for a match.
 	connect chan *GClient
 
-	// Channel for client's that are to be disconnected.
+	// Channel for client's that are to be disconnected, but not necessarily on the same tick.
 	disconnect chan DisconnectRequest
+
+	// Channel for client's that are to be disconnected, but specifically on this tick.
+	immediateDisconnect chan DisconnectRequest
 
 	// Channel for messages that should be broadcasted to all clients.
 	broadcast chan protocol.Message
@@ -51,6 +54,7 @@ func (gs *Server) Init() {
 	// Initialize the various channels.
 	gs.connect = make(chan *GClient, BufferSize)
 	gs.disconnect = make(chan DisconnectRequest, BufferSize)
+	gs.immediateDisconnect = make(chan DisconnectRequest, BufferSize)
 	gs.broadcast = make(chan protocol.Message, BufferSize)
 	gs.commands = make(chan protocol.Command, BufferSize)
 
@@ -105,7 +109,7 @@ func (gs *Server) MainLoop() {
 		start := time.Now()
 
 		// If any of the queues have something in them, process their data until all the queues are empty.
-		for len(gs.connect)+len(gs.broadcast)+len(gs.commands) > 0 {
+		for len(gs.connect)+len(gs.disconnect)+len(gs.broadcast)+len(gs.commands) > 0 {
 
 			// Using a select, read from either the connect, broadcast, or command queue - whichever comes first.
 			select {
@@ -207,7 +211,7 @@ func (gs *Server) MainLoop() {
 							match.SendPlayerData()
 							match.SendOpponentData()
 
-							log.Printf("Client [%s] joined match [%v]. Total matches: %v", client.PublicID, client.MatchID, len(gs.matches))
+							log.Printf("Match [%v] started. Total matches: %v", client.MatchID, len(gs.matches))
 						}
 					}
 				} else {
@@ -236,11 +240,14 @@ func (gs *Server) MainLoop() {
 				gs.processCommand(command)
 
 				break
+			case disconnectRequest := <-gs.disconnect:
+
+				// Add the disconnect request to the immediate disconnect request queue. This acts as a sort of sync barrier
+				// to prevent disconnect requests from being added between the tick and the disconnect handler.
+				gs.immediateDisconnect <- disconnectRequest
+				break
 			}
 		}
-
-		// Handle any pending disconnect requests.
-		gs.handleDisconnectRequests()
 
 		// Tick all matches
 		for _, match := range gs.matches {
@@ -250,6 +257,9 @@ func (gs *Server) MainLoop() {
 				match.Tick()
 			}
 		}
+
+		// Handle any pending disconnect requests.
+		gs.handleDisconnectRequests()
 
 		// Add a delay before the next iteration if the time taken is less than the designated poll time.
 		elapsed := time.Now().Sub(start)
@@ -264,13 +274,19 @@ func (gs *Server) MainLoop() {
 func (gs *Server) handleDisconnectRequests() {
 
 	// Loop while there are disconnect requests in the disconnect queue.
-	for len(gs.disconnect) > 0 {
+	for len(gs.immediateDisconnect) > 0 {
 		select {
-		case req := <-gs.disconnect:
+		case req := <-gs.immediateDisconnect:
 
 			// If the match exists, determine if we need to remove just the client, end the match etc.. Otherwise,
 			// just remove the client.
 			if match, ok := gs.matches[req.Client.MatchID]; ok {
+
+				// Early exit if the reason was an error but the match has already ended gracefully, as then we dont need to
+				// handle the error. Logic is backwards (checks for graceful finish + non win/draw code)
+				if match.isMatchGracefullyFinished() && req.Reason != protocol.WSCMatchWin && req.Reason != protocol.WSCMatchDraw {
+					break
+				}
 
 				// Set up some variables that will allow us to use the same logic regardless of whether the
 				// client that requested the disconnect was client 1 or 2.
@@ -290,6 +306,9 @@ func (gs *Server) handleDisconnectRequests() {
 				}
 
 				// Act accordingly, depending on the disconnect request reason.
+				// Gracefully ended matches are exempt from error checks, as they clients are free
+				// to do what they want as no more interactions are required from them, and they can
+				// disconnect without issue.
 
 				if req.Reason == protocol.WSCUnknownConnectionError {
 

@@ -80,6 +80,13 @@ type Match struct {
 
 	// Timer for each player's turn - used to determine if a player has made a move within the alloted time.
 	turnTimer *time.Timer
+
+	// Whether this match finished gracefully.
+	matchEndedGracefully bool
+
+	// Mutex lock to protect the critical section that can occur when reading/writing to
+	// matchEndedGracefully.
+	matchGracefulEndLock sync.Mutex
 }
 
 // Tick reads any incoming messages and passes outgoing messages to the queue, as well as handling
@@ -163,11 +170,16 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 					// of the current game state - either the player did something (like fiddling with their data packets?)
 					// or something caused some moves to be received out of order.
 					if valid {
+
 						// Forward the original message to other client.
 						other.SendMessage(message)
 
 						// If the match is determined to have ended...
 						if matchEnded {
+
+							// Set the graceful match end flag for both players, which prevents any post-finish disconnections
+							// being handled as a loss (as the game is already over, its perfectly fine to quit).
+							match.setMatchEndedGracefully(true)
 
 							// Determine which player won (if any).
 							if winner == Player1 {
@@ -205,13 +217,13 @@ func (match *Match) tickClient(client *GClient, other *GClient, player Player) {
 					match.State.Winner = other.DBID
 					match.Server.Remove(client, protocol.WSCMatchIllegalMove, "")
 				}
-			} else if message.Type == protocol.Type(protocol.WSCMatchForfeit) {
+			} else if message.Payload.Code == protocol.WSCMatchForfeit {
 
 				// Remove the forfeiting client (this will also end the game) and set the winner
 				// to the other client.
 				match.State.Winner = other.DBID
 				match.Server.Remove(client, protocol.WSCMatchForfeit, "")
-			} else if message.Type == protocol.Type(protocol.WSCMatchRelayMessage) {
+			} else if message.Payload.Code == protocol.WSCMatchRelayMessage {
 
 				// If we reach this point, the payload was just a message that should be
 				// relayed to the other client.
@@ -991,6 +1003,34 @@ func (match *Match) isValidMove(move Move, player Player) bool {
 
 	// Reaching this point means that the move is valid.
 	return true
+}
+
+// isMatchGracefullyFinished is a helper function that returns true if this match, is considered
+// to be finished in a graceful manner (such as a victory due to forcing the other player into a position from which
+// they cannot make any more moves).
+//
+// Uses a mutex lock to protect the critical section.
+func (match *Match) isMatchGracefullyFinished() bool {
+
+	// Lock the mutex lock, and then defer unlocking.
+	match.matchGracefulEndLock.Lock()
+	defer match.matchGracefulEndLock.Unlock()
+
+	// Return the value of matchMarkedAsFinished. After the function exits, the lock will be
+	// released.
+	return match.matchEndedGracefully
+}
+
+// setMatchEndedGracefully updates the the value for matchEndedGracefully.
+//
+// Uses a mutex lock to protect the critical section.
+func (match *Match) setMatchEndedGracefully(finished bool) {
+
+	// Lock the mutex lock, and then defer unlocking.
+	match.matchGracefulEndLock.Lock()
+	defer match.matchGracefulEndLock.Unlock()
+
+	match.matchEndedGracefully = finished
 }
 
 // NewMatch creates and returns a pointer to a new match, setting the specified client as player 1.
