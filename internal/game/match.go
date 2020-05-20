@@ -51,6 +51,13 @@ const (
 	blastCardAdditionalWait = time.Millisecond * 4500
 )
 
+// ActivePlayer is a uint8 typedef for the active player during a game end check
+type ActivePlayer uint8
+
+const activePlayerUndecided ActivePlayer = 0
+const activePlayerTarget ActivePlayer = 1
+const activePlayerOpposite ActivePlayer = 2
+
 // Match is a wrapper for a matches data and client connections etc
 type Match struct {
 
@@ -758,7 +765,6 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 	// the arrays will not be modified.
 
 	var targetPlayerScore uint16
-	var targetHand []Card
 	var targetField []Card
 
 	var oppositePlayerScore uint16
@@ -766,20 +772,19 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 	var oppositePlayerField []Card
 
 	var oppositePlayerDeckCount int
-	var isOppositePlayersTurn bool
+	var activePlayer ActivePlayer = activePlayerUndecided
 
 	// Determine which player's turn it is, and store it in a local variable.
 	if match.State.Turn == player {
-		isOppositePlayersTurn = false
+		activePlayer = activePlayerTarget
 	} else {
-		isOppositePlayersTurn = true
+		activePlayer = activePlayerOpposite
 	}
 
 	// Depending on which player is currently beind checked to see if they won, set values
 	// for the previously declared variables.
 	if player == Player1 {
 		targetPlayerScore = match.State.Player1Score
-		targetHand = match.State.Cards.Player1Hand
 		targetField = match.State.Cards.Player1Field
 
 		oppositePlayerScore = match.State.Player2Score
@@ -789,7 +794,6 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 
 	} else if player == Player2 {
 		targetPlayerScore = match.State.Player2Score
-		targetHand = match.State.Cards.Player2Hand
 		targetField = match.State.Cards.Player2Field
 
 		oppositePlayerScore = match.State.Player1Score
@@ -802,17 +806,6 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 		return false
 	}
 
-	// Early exit if the target player has effect cards left - this was the loss should be detcted by the other call
-	if !isOppositePlayersTurn && len(targetHand) > 0 && containsOnlyEffectCards(targetHand) {
-		return false
-	}
-
-	// Early exit if the opponent only has effect cards left, as this is an auto win regardless.
-	// Skips check if the opposite players hand is empty.
-	if len(oppositePlayerHand) > 0 && containsOnlyEffectCards(oppositePlayerHand) {
-		return true
-	}
-
 	// Early exit if the scores are equal, and the opposite player has no more cards left to
 	// try and break a tie. Ensure that the game is checked for a draw state BEFORE this function, as
 	// this check does not check the target player's side of the field.
@@ -822,11 +815,37 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 		}
 	}
 
-	// Early exit if a blast was used, and the opposite player now has no cards left in their hand (and are
-	// therefore unable to continue).
+	// There are some edge cases to handle for blast effects, so we handle them here.
 	if usedBlastEffect {
-		if len(oppositePlayerHand) == 0 {
-			return true
+
+		// If the player being checked is the player that just made a move (in this instance, used a blast card).
+		if activePlayer == activePlayerTarget {
+
+			// If the opposite player's hand is empty and the target player's score is greater than the opposite player's
+			// score, thene the target player wins.
+			if len(oppositePlayerHand) == 0 && targetPlayerScore > oppositePlayerScore {
+				return true
+			} else if len(oppositePlayerHand) == 1 && containsOnlyEffectCards(oppositePlayerHand) {
+
+				// Or, if the opposite player has only 1 card in their hand, and it is an effect card, again, the target player wins.
+				return true
+			}
+		} else {
+
+			// Otherwise, if the other player used a blast card, but put themselves in a state where they only have 1 card left,
+			// and that card is an effect card, the target player wins.
+			if len(oppositePlayerHand) == 1 && containsOnlyEffectCards(oppositePlayerHand) {
+				return true
+			}
+		}
+	} else {
+
+		// Extra check for non-blast turns where the opposite player only has effect cards remaining after the target player
+		// makes a move.
+		if activePlayer == activePlayerTarget && len(oppositePlayerHand) == 1 {
+			if targetPlayerScore > oppositePlayerScore && containsOnlyEffectCards(oppositePlayerHand) {
+				return true
+			}
 		}
 	}
 
@@ -841,7 +860,7 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 		// If the opposite players score is lower than the target player's score, and the opposite player
 		// did NOT player a blast card, they have lost as they failed to beat the score for the their turn.
 		// Blast effects are an edge case, as it does not change the turn.
-		if isOppositePlayersTurn && !usedBlastEffect {
+		if activePlayer == activePlayerOpposite && !usedBlastEffect {
 			return true
 		}
 
