@@ -935,6 +935,8 @@ func (match *Match) playerHasWon(player Player, usedBlastEffect bool) bool {
 				return false
 			}
 		}
+
+		return true
 	}
 
 	// Reaching this point indicates that none of the conditions were event explored, and the target player
@@ -1029,6 +1031,8 @@ func (match *Match) setMatchEndedGracefully(finished bool) {
 	// Lock the mutex lock, and then defer unlocking.
 	match.matchGracefulEndLock.Lock()
 	defer match.matchGracefulEndLock.Unlock()
+
+	log.Printf("Match [ %v ] ended gracefully", match.ID)
 
 	match.matchEndedGracefully = finished
 }
